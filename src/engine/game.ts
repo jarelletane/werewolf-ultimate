@@ -20,7 +20,7 @@ export const ROLES:Role[]=[
 {id:'apprentice',name:'Apprentice Seer',team:'village',description:'Takes over Seer investigations after the Seer dies.',ability:'none',night:false,unique:true},
 {id:'cupid',name:'Cupid',team:'village',description:'On the first night, link two lovers; if one dies, the other dies.',ability:'link',night:true,unique:true}
 ];
-export type Player={id:string;name:string;role:RoleId;alive:boolean;shieldUsed?:boolean};
+export type Player={id:string;name:string;role:RoleId;alive:boolean;shieldUsed?:boolean;revealedRole?:RoleId};
 export type Action={actor:string;type:Ability;target:string;secondary?:string};
 export type Phase='setup'|'night'|'day'|'vote'|'ended';
 export type Game={players:Player[];phase:Phase;round:number;step:number;actions:Action[];votes:Record<string,string>;history:string[];potions:{heal:boolean;poison:boolean};lovers:[string,string]|null;silenced:string[];winner:string|null;pendingHunter:string|null;nightResult:string[];cardsOnly:boolean;deckRoles:Partial<Record<RoleId,number>>;settings:{discussion:number;night:number;vote:number;revealRoles:boolean}};

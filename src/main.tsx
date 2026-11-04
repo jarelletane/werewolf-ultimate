@@ -228,6 +228,7 @@ function App() {
   const [secondary, setSecondary] = useState("");
   const [witchMode, setWitchMode] = useState<"heal" | "poison">("heal");
   const [manualTarget, setManualTarget] = useState("");
+  const [eliminatedRole, setEliminatedRole] = useState<RoleId | "">("");
   const players = alive(g),
     steps = nightSteps(g),
     current = steps[g.step],
@@ -237,6 +238,9 @@ function App() {
       .split("\n")
       .map((n) => n.trim())
       .filter(Boolean);
+  const awaitingReveal = g.cardsOnly
+    ? g.players.find((player) => !player.alive && !player.revealedRole)
+    : undefined;
   const narration =
     g.phase === "night"
       ? (current?.prompt ??
@@ -338,6 +342,31 @@ function App() {
       step: 0,
     });
     setManualTarget("");
+  }
+  function revealElimination() {
+    if (!awaitingReveal || !eliminatedRole) return;
+    const revealed = roleOf(eliminatedRole);
+    const remaining = Math.max(0, (g.deckRoles[eliminatedRole] || 0) - 1);
+    const wasDayVote = g.history.at(-1)?.includes(" vote") ?? false;
+    const jesterWon = eliminatedRole === "jester" && wasDayVote;
+    const players = g.players.map((player) =>
+      player.id === awaitingReveal.id
+        ? { ...player, revealedRole: eliminatedRole }
+        : player,
+    );
+    const announcement = `${awaitingReveal.name}, the ${revealed.name}, has been eliminated.`;
+    set({
+      ...g,
+      players,
+      deckRoles: { ...g.deckRoles, [eliminatedRole]: remaining },
+      history: [...g.history, announcement],
+      pendingHunter: eliminatedRole === "hunter" ? awaitingReveal.id : g.pendingHunter,
+      winner: jesterWon ? "Jester" : g.winner,
+      phase: jesterWon ? "ended" : g.phase,
+    });
+    say(announcement);
+    setVoices(true);
+    setEliminatedRole("");
   }
   const currentActions = current
     ? g.actions.filter((a) => current.actors.some((p) => p.id === a.actor))
@@ -602,7 +631,29 @@ function App() {
                   />
                 </>
               )}
-              {g.pendingHunter && (
+              {awaitingReveal && (
+                <section className="panel danger">
+                  <h3>Reveal the eliminated card</h3>
+                  <p>
+                    Check {awaitingReveal.name}'s physical card, then select it
+                    here. The app will announce the result and remove that role
+                    from future night calls.
+                  </p>
+                  <select
+                    value={eliminatedRole}
+                    onChange={(event) => setEliminatedRole(event.target.value as RoleId | "")}
+                  >
+                    <option value="">Choose the revealed role…</option>
+                    {ROLES.filter((role) => (g.deckRoles[role.id] || 0) > 0).map((role) => (
+                      <option key={role.id} value={role.id}>{role.name}</option>
+                    ))}
+                  </select>
+                  <button className="primary" disabled={!eliminatedRole} onClick={revealElimination}>
+                    <Volume2 size={16} /> Reveal and announce
+                  </button>
+                </section>
+              )}
+              {g.pendingHunter && !awaitingReveal && (
                 <section className="panel danger">
                   <h3>Hunter's final shot</h3>
                   <p>
@@ -629,7 +680,7 @@ function App() {
                   </button>
                 </section>
               )}
-              {g.phase === "night" && !g.pendingHunter && (
+              {g.phase === "night" && !g.pendingHunter && !awaitingReveal && (
                 <section className="panel">
                   <div className="panelhead">
                     <Eye size={18} />
@@ -771,7 +822,7 @@ function App() {
                   )}
                 </section>
               )}
-              {g.phase === "day" && !g.pendingHunter && (
+              {g.phase === "day" && !g.pendingHunter && !awaitingReveal && (
                 <section className="panel">
                   <div className="panelhead">
                     <Sun size={18} />
@@ -798,7 +849,7 @@ function App() {
                   </button>
                 </section>
               )}
-              {g.phase === "vote" && !g.pendingHunter && (
+              {g.phase === "vote" && !g.pendingHunter && !awaitingReveal && (
                 <section className="panel">
                   <div className="panelhead">
                     <Vote size={18} />
@@ -859,7 +910,7 @@ function App() {
                       </div>
                       <div className="personinfo">
                         <strong>{p.name}</strong>
-                        <small>{g.cardsOnly ? "Role kept on physical card" : roleOf(p.role).name}</small>
+                        <small>{g.cardsOnly ? (p.revealedRole ? roleOf(p.revealedRole).name : p.alive ? "Role kept on physical card" : "Role awaiting reveal") : roleOf(p.role).name}</small>
                       </div>
                       <span
                         className={"status " + (p.alive ? "living" : "fallen")}
@@ -905,7 +956,7 @@ function App() {
                   <div className="avatar">{p.name[0]}</div>
                   <div className="personinfo">
                     <strong>{p.name}</strong>
-                    <small>{g.cardsOnly ? "Role kept on physical card" : `${roleOf(p.role).name} · ${roleOf(p.role).team}`}</small>
+                    <small>{g.cardsOnly ? (p.revealedRole ? roleOf(p.revealedRole).name : p.alive ? "Role kept on physical card" : "Role awaiting reveal") : `${roleOf(p.role).name} · ${roleOf(p.role).team}`}</small>
                   </div>
                   <span className={"status " + (p.alive ? "living" : "fallen")}>
                     {p.alive ? "Alive" : "Dead"}

@@ -18,9 +18,10 @@ Open the Vite URL printed in your terminal. For a production build run `npm run 
 1. Deal your physical role cards, replace the sample player names, and enter only the cards included in the deck. The app never shuffles roles or records which player holds a role.
 2. Start the game. Keep the moderator dashboard private: it shows secret roles and night actions.
 3. During the night, select each role's target, record its action, and advance. Skip a role to record no action.
-4. At dawn, the engine resolves protections, attacks, potions, lovers, and Tough Villager survival.
-5. Run discussion, then record each player's vote. Ties result in no elimination.
-6. Repeat until a winner is found. Game state is autosaved in localStorage.
+4. At dawn, the engine resolves the attacks, protections, potions, and lovers recorded by the moderator.
+5. When someone is eliminated, check their physical card and select the revealed role. The app announces it and removes that role from later night calls; roles are never assigned to players beforehand.
+6. Run discussion, then record each player's vote. Ties result in no elimination.
+7. Repeat until the moderator confirms the physical-card win condition. Game state is autosaved in localStorage.
 
 ## Rules and limitations
 
