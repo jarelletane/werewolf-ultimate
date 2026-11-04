@@ -9,52 +9,55 @@ Suggested delivery: 0.85–0.9× conversational speed, restrained emotion, clean
 1. `00-gathering.mp3`  
    “A darkness gathers over the village.”
 
-2. `01-wolves-wake.mp3`  
-   “Werewolves, open your eyes. Choose one soul to disappear before dawn.”
+2. `00-night-one-begins.mp3`  
+   “Night one begins. Everyone, close your eyes.”
 
-3. `02-serial-killer-wake.mp3`  
+3. `01-wolves-wake.mp3`  
+   “Werewolves, open your eyes. Look around and recognise the other werewolves. Together, point to one player to eliminate. When your choice is made, close your eyes.”
+
+4. `02-serial-killer-wake.mp3`  
    “A lone shadow stalks the village. Choose your victim.”
 
-4. `03-seer-wake.mp3`  
-   “Seer, open your eyes. Whose secrets will you uncover?”
+5. `03-seer-wake.mp3`  
+   “Seer, open your eyes and point to one player. The moderator will silently show whether that player is a werewolf. Seer, close your eyes.”
 
-5. `04-detective-wake.mp3`  
+6. `04-detective-wake.mp3`  
    “Detective, wake and choose a player whose identity you wish to uncover.”
 
-6. `05-doctor-wake.mp3`  
+7. `05-doctor-wake.mp3`  
    “Doctor, choose a soul to shelter from the darkness.”
 
-7. `06-bodyguard-wake.mp3`  
+8. `06-bodyguard-wake.mp3`  
    “Bodyguard, choose someone to protect tonight.”
 
-8. `07-witch-wake.mp3`  
+9. `07-witch-wake.mp3`  
    “Witch, your potions await. Save one life, poison another, or do nothing.”
 
-9. `08-silencer-wake.mp3`  
+10. `08-silencer-wake.mp3`  
    “Silencer, choose whose voice shall be stolen at sunrise.”
 
-10. `09-cupid-wake.mp3`  
+11. `09-cupid-wake.mp3`  
     “Cupid, choose two souls whose fates will be forever entwined.”
 
-11. `10-dawn-approaches.mp3`  
+12. `10-dawn-approaches.mp3`  
     “The night is over. The first light of dawn breaks over the village.”
 
-12. `11-dawn-no-deaths.mp3`  
+13. `11-dawn-no-deaths.mp3`  
     “The sun rises. Against all odds, every villager has survived the night.”
 
-13. `12-dawn-tragedy-intro.mp3`  
+14. `12-dawn-tragedy-intro.mp3`  
     “Morning has come. The village awakens to tragedy.”
 
-14. `13-dawn-tragedy-outro.mp3`  
+15. `13-dawn-tragedy-outro.mp3`  
     “Did not survive the night.”
 
-15. `14-voting.mp3`  
+16. `14-voting.mp3`  
     “The village has spoken. Cast your votes, and decide who will face the judgement of the crowd.”
 
-16. `15-final-bell.mp3`  
+17. `15-final-bell.mp3`  
     “The final bell tolls.”
 
-17. `16-victory-outro.mp3`  
+18. `16-victory-outro.mp3`  
     “Have won the game.”
 
 ## Recommended extra cues

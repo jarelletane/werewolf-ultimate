@@ -325,8 +325,9 @@ function App() {
     : undefined;
   const narration =
     g.phase === "night"
-      ? (current?.prompt ??
-        "The night is over. The first light of dawn breaks over the village.")
+      ? (current
+          ? `${g.step === 0 ? (g.round === 1 ? "Night one begins. Everyone, close your eyes. " : `Night ${g.round} begins. Everyone, close your eyes. `) : ""}${current.prompt}`
+          : "The night is over. Keep your eyes closed. The first light of dawn breaks over the village. Everyone, open your eyes.")
       : g.phase === "day"
         ? g.nightResult.length
           ? `Morning has come. The village awakens to tragedy. ${g.nightResult.join(" and ")} did not survive the night.`
@@ -885,7 +886,7 @@ function App() {
                                 : g.potions.poison))
                           }
                         >
-                          <Check size={16} /> Record action
+                          <Check size={16} /> {current.ability === "kill" ? "Record elimination target" : current.ability === "inspect" ? "Record pointed player" : "Record action"}
                         </button>
                         <button className="primary" onClick={advance}>
                           {g.step === steps.length - 1
