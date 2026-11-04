@@ -54,6 +54,9 @@ const useGame = create<Store>()(
 const AMBIENCE_VOLUME = 0.18;
 const DUCKED_VOLUME = 0.05;
 let ambienceFade: number | undefined;
+let activeUtterance: SpeechSynthesisUtterance | null = null;
+let narrationRun = 0;
+let resumeAmbienceAfterNarration = false;
 
 const fadeAmbience = (target: number) => {
   const audio = document.querySelector<HTMLAudioElement>("#ambience-audio");
@@ -69,16 +72,34 @@ const fadeAmbience = (target: number) => {
   }, 30);
 };
 
-const stopNarration = () => {
-  window.speechSynthesis?.cancel();
+const restoreAmbience = (run: number) => {
+  if (run !== narrationRun) return;
+  const audio = document.querySelector<HTMLAudioElement>("#ambience-audio");
   fadeAmbience(AMBIENCE_VOLUME);
+  activeUtterance = null;
+  if (resumeAmbienceAfterNarration && audio?.paused) {
+    void audio.play().catch(() => {
+      // Some mobile browsers require another tap after taking audio focus.
+    });
+  }
+  resumeAmbienceAfterNarration = false;
+};
+
+const stopNarration = () => {
+  const run = ++narrationRun;
+  window.speechSynthesis?.cancel();
+  restoreAmbience(run);
 };
 
 const say = (text: string) => {
   if (!("speechSynthesis" in window)) return;
+  const audio = document.querySelector<HTMLAudioElement>("#ambience-audio");
+  const run = ++narrationRun;
+  resumeAmbienceAfterNarration = Boolean(audio && !audio.paused);
   window.speechSynthesis.cancel();
   fadeAmbience(DUCKED_VOLUME);
   const utter = new SpeechSynthesisUtterance(text);
+  activeUtterance = utter;
   utter.rate = 0.83;
   utter.pitch = 0.75;
   const voices = window.speechSynthesis.getVoices();
@@ -90,8 +111,12 @@ const say = (text: string) => {
     ) ||
     voices.find((voice) => voice.lang.startsWith("en")) ||
     null;
-  utter.onend = () => fadeAmbience(AMBIENCE_VOLUME);
-  utter.onerror = () => fadeAmbience(AMBIENCE_VOLUME);
+  utter.onend = () => {
+    if (activeUtterance === utter) restoreAmbience(run);
+  };
+  utter.onerror = () => {
+    if (activeUtterance === utter) restoreAmbience(run);
+  };
   window.speechSynthesis.speak(utter);
 };
 const defaultNames = [
