@@ -233,11 +233,13 @@ function AmbienceControl() {
 function WelcomeScreen({
   showGuide,
   onShowGuide,
-  onSetup,
+  onStartGame,
+  onBack,
 }: {
   showGuide: boolean;
   onShowGuide: () => void;
-  onSetup: () => void;
+  onStartGame: () => void;
+  onBack: () => void;
 }) {
   const teamObjective: Record<string, string> = {
     village: "Find and eliminate every wolf-aligned player.",
@@ -253,7 +255,7 @@ function WelcomeScreen({
       <section className="panel welcome-hero">
         <div className="moonart"><Moon size={42} /></div>
         <div className="eyebrow">A SOCIAL DEDUCTION GAME</div>
-        <h2>Welcome to the village</h2>
+        <h2>The village is ready</h2>
         <p>
           By day, the village debates and votes. By night, hidden roles wake
           and act. Keep your card secret, listen carefully, and decide whom to
@@ -263,13 +265,14 @@ function WelcomeScreen({
           <Volume2 size={16} /> Play introduction
         </button>
         <div className="welcome-actions">
-          <button className="primary" onClick={onSetup}>
-            Set up game <ChevronRight size={17} />
+          <button className="primary" onClick={onStartGame}>
+            Start game <ChevronRight size={17} />
           </button>
           <button className="secondary" onClick={onShowGuide}>
             <BookOpen size={17} /> {showGuide ? "Hide guide" : "How to play"}
           </button>
         </div>
+        <button className="back-to-setup" onClick={onBack}><ArrowLeft size={14} /> Back to player setup</button>
       </section>
       {showGuide && (
         <div className="guide-content">
@@ -302,8 +305,8 @@ function WelcomeScreen({
               ))}
             </div>
           </section>
-          <button className="primary big guide-start" onClick={onSetup}>
-            Set up the game <ChevronRight size={18} />
+          <button className="primary big guide-start" onClick={onStartGame}>
+            Start the game <ChevronRight size={18} />
           </button>
         </div>
       )}
@@ -315,7 +318,7 @@ function App() {
   const { game: g, set, reset } = useGame();
   const [tab, setTab] = useState<"game" | "players" | "log">("game");
   const [voices, setVoices] = useState(false);
-  const [setupView, setSetupView] = useState<"welcome" | "guide" | "setup">("welcome");
+  const [setupView, setSetupView] = useState<"intro" | "guide" | "setup">("setup");
   const [confirmReset, setConfirmReset] = useState(false);
   const [showEndGame, setShowEndGame] = useState(false);
   const [names, setNames] = useState(defaultNames.join("\n"));
@@ -354,7 +357,7 @@ function App() {
   function update(patch: Partial<Game>) {
     set({ ...g, ...patch });
   }
-  function begin() {
+  function continueSetup() {
     if (people.length < 5) {
       setSetupError("Add at least five players.");
       return;
@@ -373,12 +376,16 @@ function App() {
         name,
         alive: true,
       })),
-      phase: "night",
+      phase: "setup",
       cardsOnly: true,
       deckRoles: narratedRoles,
       settings: g.settings,
     });
     setSetupError("");
+    setSetupView("intro");
+  }
+  function startGame() {
+    set({ ...g, phase: "night", round: 1, step: 0, actions: [], votes: {}, history: [] });
     setTab("game");
   }
   function record() {
@@ -574,8 +581,9 @@ function App() {
         {g.phase === "setup" ? setupView !== "setup" ? (
           <WelcomeScreen
             showGuide={setupView === "guide"}
-            onShowGuide={() => setSetupView(setupView === "guide" ? "welcome" : "guide")}
-            onSetup={() => setSetupView("setup")}
+            onShowGuide={() => setSetupView(setupView === "guide" ? "intro" : "guide")}
+            onStartGame={startGame}
+            onBack={() => setSetupView("setup")}
           />
         ) : (
           <div className="setupgrid no-role-setup">
@@ -646,8 +654,8 @@ function App() {
                 Announce eliminated players' roles
               </label>
               {setupError && <p className="error">{setupError}</p>}
-              <button className="primary big" onClick={begin}>
-                Begin the story <ChevronRight size={18} />
+              <button className="primary big" onClick={continueSetup}>
+                Continue <ChevronRight size={18} />
               </button>
             </section>
           </div>
@@ -1118,7 +1126,7 @@ function App() {
                 onClick={() => {
                   reset();
                   setTab("game");
-                  setSetupView("welcome");
+                  setSetupView("setup");
                   setConfirmReset(false);
                 }}
               >

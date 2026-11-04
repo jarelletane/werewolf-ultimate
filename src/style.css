@@ -662,6 +662,13 @@ select:focus {
 .welcome-actions button {
   min-width: 150px;
 }
+.back-to-setup {
+  margin: 14px auto 0;
+  padding: 7px 10px;
+  background: transparent;
+  color: #8f9aaf;
+  font-size: 11px;
+}
 .guide-content {
   animation: guide-in 0.25s ease-out;
 }

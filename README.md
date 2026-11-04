@@ -17,10 +17,10 @@ Open the Vite URL printed in your terminal. For a production build run `npm run 
 
 ## Game flow
 
-1. Deal your physical role cards and replace the sample player names. The app never assigns roles, asks for the deck composition, or records which player holds a role.
-2. Start the game. Keep the moderator dashboard private while recording night actions; living players' roles are never entered or displayed.
+1. Deal your physical role cards, enter the player names, configure the timers, and press Continue. The app never assigns roles, asks for the deck composition, or records which player holds a role.
+2. Once everyone is ready and seated, play the opening introduction and press Start Game. Keep the moderator dashboard private while recording night actions; living players' roles are never entered or displayed.
    Night One is for wolf-pack recognition and role setup only; the wolves do not select or eliminate a victim until Night Two.
-3. During Night One, introduce the Wolves, link the Lovers if Cupid is present, perform investigations, and introduce the Doctor and Witch without using their abilities. No player can die. From Night Two onward, record each active role's target and skip roles not present or already eliminated.
+3. During Night One, introduce the Wolves, play the Seer narration immediately afterward when a Seer is present, link the Lovers if Cupid is present, and introduce the Doctor and Witch without using their abilities. No player can die. From Night Two onward, record each active role's target and skip roles not present or already eliminated.
 4. At dawn, the engine resolves the attacks, protections, potions, and lovers recorded by the moderator.
 5. When someone is eliminated, check their physical card and record the revealed role. The app announces it only when role reveals are enabled; roles are never assigned to players beforehand.
 6. Run discussion and voting with the group, then record only the player eliminated from the round—or choose no elimination after a tie.
