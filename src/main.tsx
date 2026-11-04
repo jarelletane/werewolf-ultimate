@@ -32,7 +32,6 @@ import {
   roleOf,
   nightSteps,
   alive,
-  randomRoles,
   resolveNight,
   resolveVote,
   eliminate,
@@ -233,7 +232,7 @@ function App() {
     steps = nightSteps(g),
     current = steps[g.step],
     actor = current?.actors[0],
-    total = Object.values(counts).reduce((a, b) => a + (b || 0), 0),
+    total = Object.values(counts).reduce((sum, count) => sum + (count || 0), 0),
     people = names
       .split("\n")
       .map((n) => n.trim())
@@ -264,29 +263,28 @@ function App() {
       return;
     }
     if (total !== people.length) {
-      setSetupError(
-        `Assign exactly ${people.length} roles (currently ${total}).`,
-      );
+      setSetupError(`The deck needs ${people.length} cards (currently ${total}).`);
       return;
     }
-    if (
-      !((counts.werewolf || 0) + (counts.alpha || 0) + (counts.silencer || 0))
-    ) {
-      setSetupError("Add at least one wolf-aligned player.");
+    if (!Object.entries(counts).some(([role, count]) => count && roleOf(role as RoleId).team === "wolf")) {
+      setSetupError("Include at least one wolf-aligned card.");
       return;
     }
-    try {
-      set({
-        ...initialGame(),
-        players: randomRoles(people, counts),
-        phase: "night",
-        settings: g.settings,
-      });
-      setSetupError("");
-      setTab("game");
-    } catch (e) {
-      setSetupError(String(e));
-    }
+    set({
+      ...initialGame(),
+      players: people.map((name) => ({
+        id: crypto.randomUUID(),
+        name,
+        role: "villager",
+        alive: true,
+      })),
+      phase: "night",
+      cardsOnly: true,
+      deckRoles: counts,
+      settings: g.settings,
+    });
+    setSetupError("");
+    setTab("game");
   }
   function record() {
     if (!current || !actor) return;
@@ -447,47 +445,21 @@ function App() {
             <section className="panel">
               <div className="panelhead">
                 <Shield size={18} />
-                <h2>Role composition</h2>
-                <span className="pill">
-                  {total} / {people.length}
-                </span>
+                <h2>Cards in the deck</h2>
+                <span className="pill">{total} / {people.length}</span>
               </div>
               <p className="muted">
-                A configurable selection of roles. Advanced roles use the
-                simplified house rules shown below.
+                Enter only the card mix so the moderator calls the right night
+                phases. The app never records who holds each role.
               </p>
               <div className="rolelist">
                 {ROLES.map((role) => (
                   <div className="roleline" key={role.id}>
-                    <div>
-                      <strong>{role.name}</strong>
-                      <small>{role.description}</small>
-                    </div>
+                    <div><strong>{role.name}</strong><small>{role.description}</small></div>
                     <div className="counter">
-                      <button
-                        aria-label={`Remove ${role.name}`}
-                        onClick={() =>
-                          setCounts({
-                            ...counts,
-                            [role.id]: Math.max(0, (counts[role.id] || 0) - 1),
-                          })
-                        }
-                      >
-                        <Minus size={13} />
-                      </button>
+                      <button aria-label={`Remove ${role.name}`} onClick={() => setCounts({...counts, [role.id]: Math.max(0, (counts[role.id] || 0) - 1)})}><Minus size={13} /></button>
                       <span>{counts[role.id] || 0}</span>
-                      <button
-                        aria-label={`Add ${role.name}`}
-                        disabled={!!role.unique && !!counts[role.id]}
-                        onClick={() =>
-                          setCounts({
-                            ...counts,
-                            [role.id]: (counts[role.id] || 0) + 1,
-                          })
-                        }
-                      >
-                        <Plus size={13} />
-                      </button>
+                      <button aria-label={`Add ${role.name}`} disabled={!!role.unique && !!counts[role.id]} onClick={() => setCounts({...counts, [role.id]: (counts[role.id] || 0) + 1})}><Plus size={13} /></button>
                     </div>
                   </div>
                 ))}
@@ -748,7 +720,7 @@ function App() {
                           </div>
                         </>
                       )}
-                      {current.ability === "inspect" && hasAction && (
+                      {!g.cardsOnly && current.ability === "inspect" && hasAction && (
                         <div className="result">
                           Investigation:{" "}
                           {(() => {
@@ -887,7 +859,7 @@ function App() {
                       </div>
                       <div className="personinfo">
                         <strong>{p.name}</strong>
-                        <small>{roleOf(p.role).name}</small>
+                        <small>{g.cardsOnly ? "Role kept on physical card" : roleOf(p.role).name}</small>
                       </div>
                       <span
                         className={"status " + (p.alive ? "living" : "fallen")}
@@ -933,20 +905,18 @@ function App() {
                   <div className="avatar">{p.name[0]}</div>
                   <div className="personinfo">
                     <strong>{p.name}</strong>
-                    <small>
-                      {roleOf(p.role).name} · {roleOf(p.role).team}
-                    </small>
+                    <small>{g.cardsOnly ? "Role kept on physical card" : `${roleOf(p.role).name} · ${roleOf(p.role).team}`}</small>
                   </div>
                   <span className={"status " + (p.alive ? "living" : "fallen")}>
                     {p.alive ? "Alive" : "Dead"}
                   </span>
-                  <button
+                  {!g.cardsOnly && <button
                     className="smallbtn"
                     onClick={() => setReveal(reveal === p.id ? null : p.id)}
                   >
                     {reveal === p.id ? "Hide" : "Reveal"}
-                  </button>
-                  {reveal === p.id && (
+                  </button>}
+                  {!g.cardsOnly && reveal === p.id && (
                     <div className="revealed">{roleOf(p.role).description}</div>
                   )}
                 </div>

@@ -15,7 +15,7 @@ Open the Vite URL printed in your terminal. For a production build run `npm run 
 
 ## Game flow
 
-1. Replace the sample player names and assign one role per player.
+1. Deal your physical role cards, replace the sample player names, and enter only the cards included in the deck. The app never shuffles roles or records which player holds a role.
 2. Start the game. Keep the moderator dashboard private: it shows secret roles and night actions.
 3. During the night, select each role's target, record its action, and advance. Skip a role to record no action.
 4. At dawn, the engine resolves protections, attacks, potions, lovers, and Tough Villager survival.
