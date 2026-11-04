@@ -19,6 +19,7 @@ import {
   Check,
   ArrowLeft,
   Trophy,
+  Menu,
 } from "lucide-react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -321,6 +322,7 @@ function App() {
   const [setupView, setSetupView] = useState<"intro" | "guide" | "setup">("setup");
   const [confirmReset, setConfirmReset] = useState(false);
   const [showEndGame, setShowEndGame] = useState(false);
+  const [gameMenuOpen, setGameMenuOpen] = useState(false);
   const [names, setNames] = useState(defaultNames.join("\n"));
   const [setupError, setSetupError] = useState("");
   const [selection, setSelection] = useState("");
@@ -560,10 +562,6 @@ function App() {
           </div>
           <div className="header-actions">
             <AmbienceControl />
-            {g.phase !== "setup" && <>
-              {g.phase !== "ended" && <button className="header-control" onClick={() => setShowEndGame(true)}><Skull size={15} /><span>End game</span></button>}
-              <button className="header-control" onClick={() => setConfirmReset(true)}><RotateCcw size={15} /><span>Restart</span></button>
-            </>}
             <div className="phasebadge">
               {g.phase === "night" ? (
                 <Moon size={16} />
@@ -575,6 +573,29 @@ function App() {
                 <Users size={16} />
               )}{" "}
               {g.phase.toUpperCase()}
+            </div>
+            <div className="game-menu">
+              <button
+                className="game-menu-trigger"
+                aria-label="Open game menu"
+                aria-expanded={gameMenuOpen}
+                onClick={() => setGameMenuOpen((open) => !open)}
+              >
+                <Menu size={19} />
+              </button>
+              {gameMenuOpen && (
+                <div className="game-menu-popover">
+                  <strong>Game menu</strong>
+                  {g.phase !== "setup" && g.phase !== "ended" && (
+                    <button onClick={() => { setGameMenuOpen(false); setShowEndGame(true); }}>
+                      <Skull size={15} /> End current game
+                    </button>
+                  )}
+                  <button onClick={() => { setGameMenuOpen(false); setConfirmReset(true); }}>
+                    <RotateCcw size={15} /> Restart game
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>

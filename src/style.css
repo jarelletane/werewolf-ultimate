@@ -172,12 +172,46 @@ header {
   background: #1d3935;
   color: #a8dec9;
 }
-.header-control {
-  border: 1px solid #394057;
+.game-menu {
+  position: relative;
+}
+.game-menu-trigger {
+  width: 37px;
+  height: 37px;
+  padding: 0;
+  border: 1px solid #47425e;
+  border-radius: 50%;
   background: #171d2b;
-  color: #aab3c5;
-  padding: 8px 11px;
-  font-size: 11px;
+  color: #c4b1e6;
+}
+.game-menu-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 9px);
+  right: 0;
+  width: 205px;
+  padding: 9px;
+  border: 1px solid #3a4358;
+  border-radius: 12px;
+  background: #171d2b;
+  box-shadow: 0 18px 45px #05070dbf;
+}
+.game-menu-popover strong {
+  display: block;
+  padding: 7px 9px 9px;
+  color: #8f9aaf;
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+.game-menu-popover button {
+  width: 100%;
+  justify-content: flex-start;
+  background: transparent;
+  font-size: 12px;
+}
+.game-menu-popover button:hover {
+  background: #252c3d;
 }
 .eyebrow,
 .sectiontag {
@@ -822,9 +856,6 @@ select:focus {
     max-width: 145px;
   }
   .ambience-button span {
-    display: none;
-  }
-  .header-control span {
     display: none;
   }
   .phasebadge {
