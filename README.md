@@ -2,6 +2,8 @@
 
 A local-first, mobile-friendly React + TypeScript moderator dashboard with dramatic speech narration, configurable roles, a night-action engine, timers, voting, a player roster, autosave, and win detection.
 
+The header includes optional looping horror ambience. Browsers require the moderator to tap the ambience control before audio can begin; narration remains independently controlled from the game panel.
+
 ## Run
 
 ```bash

@@ -1,23 +1,987 @@
-import React,{useEffect,useState} from 'react';import{createRoot}from'react-dom/client';import{Moon,Sun,Users,Settings,Volume2,VolumeX,Play,Pause,RotateCcw,ChevronRight,Shield,Skull,Eye,Vote,BookOpen,Plus,Minus,Check,ArrowLeft,Trophy}from'lucide-react';import{create}from'zustand';import{persist}from'zustand/middleware';import{Game,initialGame,ROLES,RoleId,roleOf,nightSteps,alive,randomRoles,resolveNight,resolveVote,eliminate,checkWinner,Action}from'./engine/game';import './style.css';
-type Store={game:Game;set:(g:Game)=>void;reset:()=>void};const useGame=create<Store>()(persist(set=>({game:initialGame(),set:(game)=>set({game}),reset:()=>set({game:initialGame()})}),{name:'werewolf-ultimate-v1'}));
-const say=(text:string)=>{if(!('speechSynthesis'in window))return;window.speechSynthesis.cancel();const utter=new SpeechSynthesisUtterance(text);utter.rate=.83;utter.pitch=.75;const voices=window.speechSynthesis.getVoices();utter.voice=voices.find(voice=>voice.lang.startsWith('en')&&/Daniel|Samantha|Karen|Moira|Google UK English/i.test(voice.name))||voices.find(voice=>voice.lang.startsWith('en'))||null;window.speechSynthesis.speak(utter)};
-const defaultNames=['Alex','Sam','Jordan','Taylor','Morgan','Casey','Riley','Jamie','Charlie','Avery','Drew','Robin'];
-function Timer({seconds,label}:{seconds:number;label:string}){const [remaining,setRemaining]=useState(seconds);const [running,setRunning]=useState(false);useEffect(()=>{setRemaining(seconds);setRunning(false)},[seconds,label]);useEffect(()=>{if(!running)return;const start=Date.now();const initial=remaining;const t=setInterval(()=>{const n=Math.max(0,initial-Math.floor((Date.now()-start)/1000));setRemaining(n);if(n===0)setRunning(false)},200);return()=>clearInterval(t)},[running]);const format=(n:number)=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;return <div className="timer"><div className="eyebrow">{label}</div><div className="time">{format(remaining)}</div><div className="progress"><div style={{width:`${remaining/Math.max(1,seconds)*100}%`}}/></div><div className="timerbuttons"><button onClick={()=>setRunning(!running)}>{running?<Pause size={15}/>:<Play size={15}/>} {running?'Pause':'Start'}</button><button onClick={()=>{setRunning(false);setRemaining(seconds)}}><RotateCcw size={15}/> Reset</button><button onClick={()=>setRemaining(r=>r+30)}>+30s</button></div></div>}
-function App(){const{game:g,set,reset}=useGame();const[tab,setTab]=useState<'game'|'players'|'log'>('game');const[voices,setVoices]=useState(false);const[confirmReset,setConfirmReset]=useState(false);const[reveal,setReveal]=useState<string|null>(null);const[names,setNames]=useState(defaultNames.join('\n'));const[counts,setCounts]=useState<Partial<Record<RoleId,number>>>({werewolf:2,seer:1,doctor:1,witch:1,hunter:1,villager:6});const[setupError,setSetupError]=useState('');const[selection,setSelection]=useState('');const[secondary,setSecondary]=useState('');const[witchMode,setWitchMode]=useState<'heal'|'poison'>('heal');const[manualTarget,setManualTarget]=useState('');
-const players=alive(g),steps=nightSteps(g),current=steps[g.step],actor=current?.actors[0],total=Object.values(counts).reduce((a,b)=>a+(b||0),0),people=names.split('\n').map(n=>n.trim()).filter(Boolean);const narration=g.phase==='night'?(current?.prompt??'The night is over. The first light of dawn breaks over the village.'):g.phase==='day'?(g.nightResult.length?`Morning has come. The village awakens to tragedy. ${g.nightResult.join(' and ')} did not survive the night.`:'The sun rises. Against all odds, every villager has survived the night.'):g.phase==='vote'?'The village has spoken. Cast your votes, and decide who will face the judgement of the crowd.':g.phase==='ended'?`The final bell tolls. ${g.winner} have won the game.`:'A darkness gathers over the village.';
-function update(patch:Partial<Game>){set({...g,...patch})}function begin(){if(people.length<5){setSetupError('Add at least five players.');return}if(new Set(people.map(p=>p.toLowerCase())).size!==people.length){setSetupError('Player names must be unique.');return}if(total!==people.length){setSetupError(`Assign exactly ${people.length} roles (currently ${total}).`);return}if(!((counts.werewolf||0)+(counts.alpha||0)+(counts.silencer||0))){setSetupError('Add at least one wolf-aligned player.');return}try{set({...initialGame(),players:randomRoles(people,counts),phase:'night',settings:g.settings});setSetupError('');setTab('game')}catch(e){setSetupError(String(e))}}
-function record(){if(!current||!actor)return;const type=current.key==='witch'?witchMode:current.ability;if(type==='heal'&&!g.potions.heal||type==='poison'&&!g.potions.poison)return;if(!selection)return;if(type==='link'&&(!secondary||selection===secondary))return;const action:Action={actor:actor.id,type,target:selection,secondary:type==='link'?secondary:undefined};const actions=g.actions.filter(a=>!(a.actor===actor.id&&a.type===type));update({actions:[...actions,action]});setSelection('');setSecondary('')}
-function advance(){if(g.step<steps.length-1){update({step:g.step+1});setSelection('');setSecondary('');setWitchMode('heal')}else{set(resolveNight(g));setSelection('');setSecondary('')}}
-function resolveHunter(){if(!g.pendingHunter||!manualTarget)return;const next=eliminate({...g,pendingHunter:null},[manualTarget],'Hunter retaliation');const winner=checkWinner(next);set({...next,pendingHunter:null,winner,phase:winner?'ended':g.phase==='day'?'day':'night',round:g.phase==='vote'?g.round+1:g.round,step:0});setManualTarget('')}
-const currentActions=current?g.actions.filter(a=>current.actors.some(p=>p.id===a.actor)):[];const hasAction=currentActions.length>0;
-return <div className="app"><aside className="sidebar"><div className="brand"><div className="brandmark"><Moon size={21}/></div><div>WEREWOLF <span>ULTIMATE</span><small>THE MODERATOR'S DESK</small></div></div><div className="nav"><button className={tab==='game'?'active':''} onClick={()=>setTab('game')}><Moon size={18}/> Game director</button><button className={tab==='players'?'active':''} onClick={()=>setTab('players')}><Users size={18}/> Player roster</button><button className={tab==='log'?'active':''} onClick={()=>setTab('log')}><BookOpen size={18}/> Chronicle</button></div><div className="sidebottom"><div className="online"><span/> Local game · Autosaved</div><button className="ghost" onClick={()=>setConfirmReset(true)}><RotateCcw size={15}/> New game</button></div></aside><main><header><div className="headerleft"><span className="eyebrow">THE MODERATOR'S DESK</span><h1>{g.phase==='setup'?'Prepare the village':g.phase==='ended'?'The final chapter':g.phase==='night'?'The village sleeps':g.phase==='day'?'The village awakens':'The village decides'}</h1><p>{g.phase==='setup'?'Gather your players and cast the roles.':g.phase==='ended'?'The story has reached its end.':`Round ${g.round} · ${players.length} souls remain`}</p></div><div className="phasebadge">{g.phase==='night'?<Moon size={16}/>:g.phase==='day'?<Sun size={16}/>:g.phase==='ended'?<Trophy size={16}/>:<Users size={16}/>} {g.phase.toUpperCase()}</div></header>
-{g.phase==='setup'?<div className="setupgrid"><section className="panel"><div className="panelhead"><Users size={18}/><h2>Players</h2><span className="pill">{people.length}</span></div><p className="muted">Enter one name per line. These are sample names—replace them with your group.</p><textarea value={names} onChange={e=>setNames(e.target.value)} rows={14} spellCheck={false}/></section><section className="panel"><div className="panelhead"><Shield size={18}/><h2>Role composition</h2><span className="pill">{total} / {people.length}</span></div><p className="muted">A configurable selection of roles. Advanced roles use the simplified house rules shown below.</p><div className="rolelist">{ROLES.map(role=><div className="roleline" key={role.id}><div><strong>{role.name}</strong><small>{role.description}</small></div><div className="counter"><button aria-label={`Remove ${role.name}`} onClick={()=>setCounts({...counts,[role.id]:Math.max(0,(counts[role.id]||0)-1)})}><Minus size={13}/></button><span>{counts[role.id]||0}</span><button aria-label={`Add ${role.name}`} disabled={!!role.unique&&!!counts[role.id]} onClick={()=>setCounts({...counts,[role.id]:(counts[role.id]||0)+1})}><Plus size={13}/></button></div></div>)}</div></section><section className="panel settings"><div className="panelhead"><Settings size={18}/><h2>Game settings</h2></div><div className="settingsgrid">{([['discussion','Discussion timer'],['night','Night action timer'],['vote','Voting timer']] as const).map(([key,label])=><label key={key}>{label}<div className="inputrow"><input type="number" min="10" value={g.settings[key]} onChange={e=>update({settings:{...g.settings,[key]:Math.max(10,Number(e.target.value)||10)}})}/><span>sec</span></div></label>)}</div><label className="checkline"><input type="checkbox" checked={g.settings.revealRoles} onChange={e=>update({settings:{...g.settings,revealRoles:e.target.checked}})}/> Announce eliminated players' roles</label>{setupError&&<p className="error">{setupError}</p>}<button className="primary big" onClick={begin}>Begin the story <ChevronRight size={18}/></button></section></div>:<div className="dashboard"><div className="primarycolumn">{g.phase==='ended'?<section className="panel hero"><Trophy className="gold" size={36}/><div className="eyebrow">THE FINAL CHAPTER</div><h2>{g.winner} win!</h2><p>The village's fate has been sealed. Reveal the roles below, or begin a new story.</p><button className="primary" onClick={()=>setConfirmReset(true)}>Play again <ChevronRight size={17}/></button></section>:<><section className="panel hero"><div className="sectiontag">{g.phase==='night'?`NIGHT ${g.round} · ${current?.name.toUpperCase()||'DAWN'}`:g.phase==='day'?`DAY ${g.round} · DISCUSSION`:`DAY ${g.round} · VOTING`}</div><div className="moonart">{g.phase==='night'?<Moon size={42}/>:<Sun size={42}/>}</div><h2>{g.phase==='night'?(current?.name||'Dawn approaches'):g.phase==='day'?'Let the accusations begin':'The village must choose'}</h2><p className="narration">“{narration}”</p><div className="speech"><button onClick={()=>{say(narration);setVoices(true)}}><Volume2 size={17}/> Read aloud</button><button onClick={()=>{window.speechSynthesis?.cancel();setVoices(false)}}><VolumeX size={17}/> Stop</button><span>{voices?'Narration enabled':'Dramatic narration'}</span></div></section><Timer seconds={g.phase==='night'?g.settings.night:g.phase==='day'?g.settings.discussion:g.settings.vote} label={g.phase==='night'?(current?.name||'Night'):`${g.phase} countdown`}/></>}
-{g.pendingHunter&&<section className="panel danger"><h3>Hunter's final shot</h3><p>The Hunter was eliminated. Select a living target before continuing.</p><select value={manualTarget} onChange={e=>setManualTarget(e.target.value)}><option value="">Choose target</option>{players.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select><button className="primary" disabled={!manualTarget} onClick={resolveHunter}>Resolve shot</button></section>}
-{g.phase==='night'&&!g.pendingHunter&&<section className="panel"><div className="panelhead"><Eye size={18}/><h2>{current?'Secret night action':'Night complete'}</h2><span className="pill">{Math.min(g.step+1,steps.length)} / {steps.length}</span></div>{current?<><p className="muted">{current.actors.map(p=>p.name).join(', ')} · {current.name}</p><p className="muted">Select a target. The moderator records actions privately. For multiple pack members, one shared target is used.</p>{current.key==='witch'&&<div className="switch"><button className={witchMode==='heal'?'selected':''} disabled={!g.potions.heal} onClick={()=>{setWitchMode('heal');setSelection('')}}>Heal {g.potions.heal?'(1 left)':'(used)'}</button><button className={witchMode==='poison'?'selected':''} disabled={!g.potions.poison} onClick={()=>{setWitchMode('poison');setSelection('')}}>Poison {g.potions.poison?'(1 left)':'(used)'}</button></div>}{current.key==='witch'&&<p className="muted">House rule: the moderator selects the heal target manually; potion use is optional.</p>}<div className="targets">{players.filter(p=>current.ability==='link'||p.id!==actor?.id||current.key==='wolves').map(p=><button key={p.id} className={selection===p.id?'selected':''} onClick={()=>setSelection(p.id)}>{p.name}{selection===p.id&&<Check size={15}/>}</button>)}</div>{current.ability==='link'&&<><p className="muted">Choose the second lover</p><div className="targets">{players.filter(p=>p.id!==selection).map(p=><button key={p.id} className={secondary===p.id?'selected':''} onClick={()=>setSecondary(p.id)}>{p.name}</button>)}</div></>}{current.ability==='inspect'&&hasAction&&<div className="result">Investigation: {(()=>{const target=g.players.find(p=>p.id===currentActions[0].target);return target?`${target.name} — ${current.key==='seer'?(roleOf(target.role).team==='wolf'?'Wolf-aligned':'Not wolf-aligned'):roleOf(target.role).name}`:'Unknown'})()}</div>}<div className="actionrow"><button className="secondary" onClick={record} disabled={!selection||(current.ability==='link'&&!secondary)||(current.key==='witch'&&!(witchMode==='heal'?g.potions.heal:g.potions.poison))}><Check size={16}/> Record action</button><button className="primary" onClick={advance}>{g.step===steps.length-1?'Resolve night':'Next role'} <ChevronRight size={17}/></button></div><small className="muted">{hasAction?'✓ Action recorded. You can change it before advancing.':'Skipping a role records no action.'}</small></>:<button className="primary" onClick={()=>set(resolveNight(g))}>Bring on the dawn <Sun size={17}/></button>}</section>}
-{g.phase==='day'&&!g.pendingHunter&&<section className="panel"><div className="panelhead"><Sun size={18}/><h2>Day discussion</h2></div><p className="muted">{g.nightResult.length?`Lost last night: ${g.nightResult.join(', ')}`:'No one died last night.'}</p>{g.silenced.length>0&&<p className="muted">Silenced: {g.silenced.map(id=>g.players.find(p=>p.id===id)?.name).join(', ')}</p>}<button className="primary big" onClick={()=>update({phase:'vote',votes:{}})}>Begin the vote <Vote size={18}/></button></section>}
-{g.phase==='vote'&&!g.pendingHunter&&<section className="panel"><div className="panelhead"><Vote size={18}/><h2>Record the votes</h2></div><p className="muted">Choose each living player's vote. A tie means nobody is eliminated.</p><div className="voterlist">{players.map(p=><label key={p.id}><span>{p.name}</span><select value={g.votes[p.id]||''} onChange={e=>update({votes:{...g.votes,[p.id]:e.target.value}})}><option value="">Abstain / not recorded</option>{players.filter(t=>t.id!==p.id).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>)}</div><button className="primary big" onClick={()=>set(resolveVote(g))}>Tally votes and continue <ChevronRight size={18}/></button></section>}
-</div><div className="sidecolumn"><section className="panel"><div className="panelhead"><Users size={18}/><h2>Village roster</h2><span className="pill">{players.length} alive</span></div><div className="roster">{g.players.map(p=><div className={'person '+(!p.alive?'dead':'')} key={p.id}><div className="avatar">{p.name.slice(0,1).toUpperCase()}</div><div className="personinfo"><strong>{p.name}</strong><small>{roleOf(p.role).name}</small></div><span className={'status '+(p.alive?'living':'fallen')}>{p.alive?'Alive':'Dead'}</span></div>)}</div></section><section className="panel"><div className="panelhead"><BookOpen size={18}/><h2>Chronicle</h2></div>{g.history.length===0?<p className="muted">The story has yet to claim its first victim.</p>:g.history.slice(-5).reverse().map((h,i)=><div className="logline" key={i}>{h}</div>)}</section></div></div>}
-{tab==='players'&&g.phase!=='setup'&&<div className="overlaypanel"><button className="back" onClick={()=>setTab('game')}><ArrowLeft size={16}/> Back to game</button><h2>Full player roster</h2><div className="roster full">{g.players.map(p=><div className="person" key={p.id}><div className="avatar">{p.name[0]}</div><div className="personinfo"><strong>{p.name}</strong><small>{roleOf(p.role).name} · {roleOf(p.role).team}</small></div><span className={'status '+(p.alive?'living':'fallen')}>{p.alive?'Alive':'Dead'}</span><button className="smallbtn" onClick={()=>setReveal(reveal===p.id?null:p.id)}>{reveal===p.id?'Hide':'Reveal'}</button>{reveal===p.id&&<div className="revealed">{roleOf(p.role).description}</div>}</div>)}</div><p className="muted">Moderator-only screen. Keep it hidden from players.</p></div>}
-{tab==='log'&&g.phase!=='setup'&&<div className="overlaypanel"><button className="back" onClick={()=>setTab('game')}><ArrowLeft size={16}/> Back to game</button><h2>The chronicle</h2>{g.history.length===0?<p>No events recorded yet.</p>:g.history.map((h,i)=><div className="logline" key={i}>{h}</div>)}</div>}
-</main>{confirmReset&&<div className="modalback"><div className="modal"><Skull size={28}/><h2>Begin a new story?</h2><p>This will erase the current game. Your current progress is saved only in this browser.</p><div className="actionrow"><button className="secondary" onClick={()=>setConfirmReset(false)}>Cancel</button><button className="primary" onClick={()=>{reset();setTab('game');setConfirmReset(false)}}>Reset game</button></div></div></div>}</div>}
-createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>);
+import React, { useEffect, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
+import {
+  Moon,
+  Sun,
+  Users,
+  Settings,
+  Volume2,
+  VolumeX,
+  Play,
+  Pause,
+  RotateCcw,
+  ChevronRight,
+  Shield,
+  Skull,
+  Eye,
+  Vote,
+  BookOpen,
+  Plus,
+  Minus,
+  Check,
+  ArrowLeft,
+  Trophy,
+} from "lucide-react";
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import {
+  Game,
+  initialGame,
+  ROLES,
+  RoleId,
+  roleOf,
+  nightSteps,
+  alive,
+  randomRoles,
+  resolveNight,
+  resolveVote,
+  eliminate,
+  checkWinner,
+  Action,
+} from "./engine/game";
+import "./style.css";
+type Store = { game: Game; set: (g: Game) => void; reset: () => void };
+const useGame = create<Store>()(
+  persist(
+    (set) => ({
+      game: initialGame(),
+      set: (game) => set({ game }),
+      reset: () => set({ game: initialGame() }),
+    }),
+    { name: "werewolf-ultimate-v1" },
+  ),
+);
+const say = (text: string) => {
+  if (!("speechSynthesis" in window)) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.83;
+  utter.pitch = 0.75;
+  const voices = window.speechSynthesis.getVoices();
+  utter.voice =
+    voices.find(
+      (voice) =>
+        voice.lang.startsWith("en") &&
+        /Daniel|Samantha|Karen|Moira|Google UK English/i.test(voice.name),
+    ) ||
+    voices.find((voice) => voice.lang.startsWith("en")) ||
+    null;
+  window.speechSynthesis.speak(utter);
+};
+const defaultNames = [
+  "Alex",
+  "Sam",
+  "Jordan",
+  "Taylor",
+  "Morgan",
+  "Casey",
+  "Riley",
+  "Jamie",
+  "Charlie",
+  "Avery",
+  "Drew",
+  "Robin",
+];
+function Timer({ seconds, label }: { seconds: number; label: string }) {
+  const [remaining, setRemaining] = useState(seconds);
+  const [running, setRunning] = useState(false);
+  useEffect(() => {
+    setRemaining(seconds);
+    setRunning(false);
+  }, [seconds, label]);
+  useEffect(() => {
+    if (!running) return;
+    const start = Date.now();
+    const initial = remaining;
+    const t = setInterval(() => {
+      const n = Math.max(0, initial - Math.floor((Date.now() - start) / 1000));
+      setRemaining(n);
+      if (n === 0) setRunning(false);
+    }, 200);
+    return () => clearInterval(t);
+  }, [running]);
+  const format = (n: number) =>
+    `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
+  return (
+    <div className="timer">
+      <div className="eyebrow">{label}</div>
+      <div className="time">{format(remaining)}</div>
+      <div className="progress">
+        <div
+          style={{ width: `${(remaining / Math.max(1, seconds)) * 100}%` }}
+        />
+      </div>
+      <div className="timerbuttons">
+        <button onClick={() => setRunning(!running)}>
+          {running ? <Pause size={15} /> : <Play size={15} />}{" "}
+          {running ? "Pause" : "Start"}
+        </button>
+        <button
+          onClick={() => {
+            setRunning(false);
+            setRemaining(seconds);
+          }}
+        >
+          <RotateCcw size={15} /> Reset
+        </button>
+        <button onClick={() => setRemaining((r) => r + 30)}>+30s</button>
+      </div>
+    </div>
+  );
+}
+
+function AmbienceControl() {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = 0.18;
+    return () => audio.pause();
+  }, []);
+
+  async function toggle() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) {
+      audio.pause();
+      setPlaying(false);
+      return;
+    }
+    try {
+      await audio.play();
+      setPlaying(true);
+    } catch {
+      setPlaying(false);
+    }
+  }
+
+  return (
+    <div className="ambience-control">
+      <audio
+        ref={audioRef}
+        src="/audio/horror-ambience.mp3"
+        preload="none"
+        loop
+        onPause={() => setPlaying(false)}
+        onPlay={() => setPlaying(true)}
+      />
+      <button
+        className={playing ? "ambience-button active" : "ambience-button"}
+        onClick={toggle}
+        aria-pressed={playing}
+        aria-label={playing ? "Pause background ambience" : "Play background ambience"}
+        title={playing ? "Pause ambience" : "Play ambience"}
+      >
+        {playing ? <Volume2 size={16} /> : <VolumeX size={16} />}
+        <span>{playing ? "Ambience on" : "Ambience off"}</span>
+      </button>
+    </div>
+  );
+}
+
+function App() {
+  const { game: g, set, reset } = useGame();
+  const [tab, setTab] = useState<"game" | "players" | "log">("game");
+  const [voices, setVoices] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [reveal, setReveal] = useState<string | null>(null);
+  const [names, setNames] = useState(defaultNames.join("\n"));
+  const [counts, setCounts] = useState<Partial<Record<RoleId, number>>>({
+    werewolf: 2,
+    seer: 1,
+    doctor: 1,
+    witch: 1,
+    hunter: 1,
+    villager: 6,
+  });
+  const [setupError, setSetupError] = useState("");
+  const [selection, setSelection] = useState("");
+  const [secondary, setSecondary] = useState("");
+  const [witchMode, setWitchMode] = useState<"heal" | "poison">("heal");
+  const [manualTarget, setManualTarget] = useState("");
+  const players = alive(g),
+    steps = nightSteps(g),
+    current = steps[g.step],
+    actor = current?.actors[0],
+    total = Object.values(counts).reduce((a, b) => a + (b || 0), 0),
+    people = names
+      .split("\n")
+      .map((n) => n.trim())
+      .filter(Boolean);
+  const narration =
+    g.phase === "night"
+      ? (current?.prompt ??
+        "The night is over. The first light of dawn breaks over the village.")
+      : g.phase === "day"
+        ? g.nightResult.length
+          ? `Morning has come. The village awakens to tragedy. ${g.nightResult.join(" and ")} did not survive the night.`
+          : "The sun rises. Against all odds, every villager has survived the night."
+        : g.phase === "vote"
+          ? "The village has spoken. Cast your votes, and decide who will face the judgement of the crowd."
+          : g.phase === "ended"
+            ? `The final bell tolls. ${g.winner} have won the game.`
+            : "A darkness gathers over the village.";
+  function update(patch: Partial<Game>) {
+    set({ ...g, ...patch });
+  }
+  function begin() {
+    if (people.length < 5) {
+      setSetupError("Add at least five players.");
+      return;
+    }
+    if (new Set(people.map((p) => p.toLowerCase())).size !== people.length) {
+      setSetupError("Player names must be unique.");
+      return;
+    }
+    if (total !== people.length) {
+      setSetupError(
+        `Assign exactly ${people.length} roles (currently ${total}).`,
+      );
+      return;
+    }
+    if (
+      !((counts.werewolf || 0) + (counts.alpha || 0) + (counts.silencer || 0))
+    ) {
+      setSetupError("Add at least one wolf-aligned player.");
+      return;
+    }
+    try {
+      set({
+        ...initialGame(),
+        players: randomRoles(people, counts),
+        phase: "night",
+        settings: g.settings,
+      });
+      setSetupError("");
+      setTab("game");
+    } catch (e) {
+      setSetupError(String(e));
+    }
+  }
+  function record() {
+    if (!current || !actor) return;
+    const type = current.key === "witch" ? witchMode : current.ability;
+    if (
+      (type === "heal" && !g.potions.heal) ||
+      (type === "poison" && !g.potions.poison)
+    )
+      return;
+    if (!selection) return;
+    if (type === "link" && (!secondary || selection === secondary)) return;
+    const action: Action = {
+      actor: actor.id,
+      type,
+      target: selection,
+      secondary: type === "link" ? secondary : undefined,
+    };
+    const actions = g.actions.filter(
+      (a) => !(a.actor === actor.id && a.type === type),
+    );
+    update({ actions: [...actions, action] });
+    setSelection("");
+    setSecondary("");
+  }
+  function advance() {
+    if (g.step < steps.length - 1) {
+      update({ step: g.step + 1 });
+      setSelection("");
+      setSecondary("");
+      setWitchMode("heal");
+    } else {
+      set(resolveNight(g));
+      setSelection("");
+      setSecondary("");
+    }
+  }
+  function resolveHunter() {
+    if (!g.pendingHunter || !manualTarget) return;
+    const next = eliminate(
+      { ...g, pendingHunter: null },
+      [manualTarget],
+      "Hunter retaliation",
+    );
+    const winner = checkWinner(next);
+    set({
+      ...next,
+      pendingHunter: null,
+      winner,
+      phase: winner ? "ended" : g.phase === "day" ? "day" : "night",
+      round: g.phase === "vote" ? g.round + 1 : g.round,
+      step: 0,
+    });
+    setManualTarget("");
+  }
+  const currentActions = current
+    ? g.actions.filter((a) => current.actors.some((p) => p.id === a.actor))
+    : [];
+  const hasAction = currentActions.length > 0;
+  return (
+    <div className="app">
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="brandmark">
+            <Moon size={21} />
+          </div>
+          <div>
+            WEREWOLF <span>ULTIMATE</span>
+            <small>THE MODERATOR'S DESK</small>
+          </div>
+        </div>
+        <div className="nav">
+          <button
+            className={tab === "game" ? "active" : ""}
+            onClick={() => setTab("game")}
+          >
+            <Moon size={18} /> Game director
+          </button>
+          <button
+            className={tab === "players" ? "active" : ""}
+            onClick={() => setTab("players")}
+          >
+            <Users size={18} /> Player roster
+          </button>
+          <button
+            className={tab === "log" ? "active" : ""}
+            onClick={() => setTab("log")}
+          >
+            <BookOpen size={18} /> Chronicle
+          </button>
+        </div>
+        <div className="sidebottom">
+          <div className="online">
+            <span /> Local game · Autosaved
+          </div>
+          <button className="ghost" onClick={() => setConfirmReset(true)}>
+            <RotateCcw size={15} /> New game
+          </button>
+        </div>
+      </aside>
+      <main>
+        <header>
+          <div className="headerleft">
+            <span className="eyebrow">THE MODERATOR'S DESK</span>
+            <h1>
+              {g.phase === "setup"
+                ? "Prepare the village"
+                : g.phase === "ended"
+                  ? "The final chapter"
+                  : g.phase === "night"
+                    ? "The village sleeps"
+                    : g.phase === "day"
+                      ? "The village awakens"
+                      : "The village decides"}
+            </h1>
+            <p>
+              {g.phase === "setup"
+                ? "Gather your players and cast the roles."
+                : g.phase === "ended"
+                  ? "The story has reached its end."
+                  : `Round ${g.round} · ${players.length} souls remain`}
+            </p>
+          </div>
+          <div className="header-actions">
+            <AmbienceControl />
+            <div className="phasebadge">
+              {g.phase === "night" ? (
+                <Moon size={16} />
+              ) : g.phase === "day" ? (
+                <Sun size={16} />
+              ) : g.phase === "ended" ? (
+                <Trophy size={16} />
+              ) : (
+                <Users size={16} />
+              )}{" "}
+              {g.phase.toUpperCase()}
+            </div>
+          </div>
+        </header>
+        {g.phase === "setup" ? (
+          <div className="setupgrid">
+            <section className="panel">
+              <div className="panelhead">
+                <Users size={18} />
+                <h2>Players</h2>
+                <span className="pill">{people.length}</span>
+              </div>
+              <p className="muted">
+                Enter one name per line. These are sample names—replace them
+                with your group.
+              </p>
+              <textarea
+                value={names}
+                onChange={(e) => setNames(e.target.value)}
+                rows={14}
+                spellCheck={false}
+              />
+            </section>
+            <section className="panel">
+              <div className="panelhead">
+                <Shield size={18} />
+                <h2>Role composition</h2>
+                <span className="pill">
+                  {total} / {people.length}
+                </span>
+              </div>
+              <p className="muted">
+                A configurable selection of roles. Advanced roles use the
+                simplified house rules shown below.
+              </p>
+              <div className="rolelist">
+                {ROLES.map((role) => (
+                  <div className="roleline" key={role.id}>
+                    <div>
+                      <strong>{role.name}</strong>
+                      <small>{role.description}</small>
+                    </div>
+                    <div className="counter">
+                      <button
+                        aria-label={`Remove ${role.name}`}
+                        onClick={() =>
+                          setCounts({
+                            ...counts,
+                            [role.id]: Math.max(0, (counts[role.id] || 0) - 1),
+                          })
+                        }
+                      >
+                        <Minus size={13} />
+                      </button>
+                      <span>{counts[role.id] || 0}</span>
+                      <button
+                        aria-label={`Add ${role.name}`}
+                        disabled={!!role.unique && !!counts[role.id]}
+                        onClick={() =>
+                          setCounts({
+                            ...counts,
+                            [role.id]: (counts[role.id] || 0) + 1,
+                          })
+                        }
+                      >
+                        <Plus size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+            <section className="panel settings">
+              <div className="panelhead">
+                <Settings size={18} />
+                <h2>Game settings</h2>
+              </div>
+              <div className="settingsgrid">
+                {(
+                  [
+                    ["discussion", "Discussion timer"],
+                    ["night", "Night action timer"],
+                    ["vote", "Voting timer"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key}>
+                    {label}
+                    <div className="inputrow">
+                      <input
+                        type="number"
+                        min="10"
+                        value={g.settings[key]}
+                        onChange={(e) =>
+                          update({
+                            settings: {
+                              ...g.settings,
+                              [key]: Math.max(10, Number(e.target.value) || 10),
+                            },
+                          })
+                        }
+                      />
+                      <span>sec</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <label className="checkline">
+                <input
+                  type="checkbox"
+                  checked={g.settings.revealRoles}
+                  onChange={(e) =>
+                    update({
+                      settings: {
+                        ...g.settings,
+                        revealRoles: e.target.checked,
+                      },
+                    })
+                  }
+                />{" "}
+                Announce eliminated players' roles
+              </label>
+              {setupError && <p className="error">{setupError}</p>}
+              <button className="primary big" onClick={begin}>
+                Begin the story <ChevronRight size={18} />
+              </button>
+            </section>
+          </div>
+        ) : (
+          <div className="dashboard">
+            <div className="primarycolumn">
+              {g.phase === "ended" ? (
+                <section className="panel hero">
+                  <Trophy className="gold" size={36} />
+                  <div className="eyebrow">THE FINAL CHAPTER</div>
+                  <h2>{g.winner} win!</h2>
+                  <p>
+                    The village's fate has been sealed. Reveal the roles below,
+                    or begin a new story.
+                  </p>
+                  <button
+                    className="primary"
+                    onClick={() => setConfirmReset(true)}
+                  >
+                    Play again <ChevronRight size={17} />
+                  </button>
+                </section>
+              ) : (
+                <>
+                  <section className="panel hero">
+                    <div className="sectiontag">
+                      {g.phase === "night"
+                        ? `NIGHT ${g.round} · ${current?.name.toUpperCase() || "DAWN"}`
+                        : g.phase === "day"
+                          ? `DAY ${g.round} · DISCUSSION`
+                          : `DAY ${g.round} · VOTING`}
+                    </div>
+                    <div className="moonart">
+                      {g.phase === "night" ? (
+                        <Moon size={42} />
+                      ) : (
+                        <Sun size={42} />
+                      )}
+                    </div>
+                    <h2>
+                      {g.phase === "night"
+                        ? current?.name || "Dawn approaches"
+                        : g.phase === "day"
+                          ? "Let the accusations begin"
+                          : "The village must choose"}
+                    </h2>
+                    <p className="narration">“{narration}”</p>
+                    <div className="speech">
+                      <button
+                        onClick={() => {
+                          say(narration);
+                          setVoices(true);
+                        }}
+                      >
+                        <Volume2 size={17} /> Read aloud
+                      </button>
+                      <button
+                        onClick={() => {
+                          window.speechSynthesis?.cancel();
+                          setVoices(false);
+                        }}
+                      >
+                        <VolumeX size={17} /> Stop
+                      </button>
+                      <span>
+                        {voices ? "Narration enabled" : "Dramatic narration"}
+                      </span>
+                    </div>
+                  </section>
+                  <Timer
+                    seconds={
+                      g.phase === "night"
+                        ? g.settings.night
+                        : g.phase === "day"
+                          ? g.settings.discussion
+                          : g.settings.vote
+                    }
+                    label={
+                      g.phase === "night"
+                        ? current?.name || "Night"
+                        : `${g.phase} countdown`
+                    }
+                  />
+                </>
+              )}
+              {g.pendingHunter && (
+                <section className="panel danger">
+                  <h3>Hunter's final shot</h3>
+                  <p>
+                    The Hunter was eliminated. Select a living target before
+                    continuing.
+                  </p>
+                  <select
+                    value={manualTarget}
+                    onChange={(e) => setManualTarget(e.target.value)}
+                  >
+                    <option value="">Choose target</option>
+                    {players.map((p) => (
+                      <option value={p.id} key={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="primary"
+                    disabled={!manualTarget}
+                    onClick={resolveHunter}
+                  >
+                    Resolve shot
+                  </button>
+                </section>
+              )}
+              {g.phase === "night" && !g.pendingHunter && (
+                <section className="panel">
+                  <div className="panelhead">
+                    <Eye size={18} />
+                    <h2>
+                      {current ? "Secret night action" : "Night complete"}
+                    </h2>
+                    <span className="pill">
+                      {Math.min(g.step + 1, steps.length)} / {steps.length}
+                    </span>
+                  </div>
+                  {current ? (
+                    <>
+                      <p className="muted">
+                        {current.actors.map((p) => p.name).join(", ")} ·{" "}
+                        {current.name}
+                      </p>
+                      <p className="muted">
+                        Select a target. The moderator records actions
+                        privately. For multiple pack members, one shared target
+                        is used.
+                      </p>
+                      {current.key === "witch" && (
+                        <div className="switch">
+                          <button
+                            className={witchMode === "heal" ? "selected" : ""}
+                            disabled={!g.potions.heal}
+                            onClick={() => {
+                              setWitchMode("heal");
+                              setSelection("");
+                            }}
+                          >
+                            Heal {g.potions.heal ? "(1 left)" : "(used)"}
+                          </button>
+                          <button
+                            className={witchMode === "poison" ? "selected" : ""}
+                            disabled={!g.potions.poison}
+                            onClick={() => {
+                              setWitchMode("poison");
+                              setSelection("");
+                            }}
+                          >
+                            Poison {g.potions.poison ? "(1 left)" : "(used)"}
+                          </button>
+                        </div>
+                      )}
+                      {current.key === "witch" && (
+                        <p className="muted">
+                          House rule: the moderator selects the heal target
+                          manually; potion use is optional.
+                        </p>
+                      )}
+                      <div className="targets">
+                        {players
+                          .filter(
+                            (p) =>
+                              current.ability === "link" ||
+                              p.id !== actor?.id ||
+                              current.key === "wolves",
+                          )
+                          .map((p) => (
+                            <button
+                              key={p.id}
+                              className={selection === p.id ? "selected" : ""}
+                              onClick={() => setSelection(p.id)}
+                            >
+                              {p.name}
+                              {selection === p.id && <Check size={15} />}
+                            </button>
+                          ))}
+                      </div>
+                      {current.ability === "link" && (
+                        <>
+                          <p className="muted">Choose the second lover</p>
+                          <div className="targets">
+                            {players
+                              .filter((p) => p.id !== selection)
+                              .map((p) => (
+                                <button
+                                  key={p.id}
+                                  className={
+                                    secondary === p.id ? "selected" : ""
+                                  }
+                                  onClick={() => setSecondary(p.id)}
+                                >
+                                  {p.name}
+                                </button>
+                              ))}
+                          </div>
+                        </>
+                      )}
+                      {current.ability === "inspect" && hasAction && (
+                        <div className="result">
+                          Investigation:{" "}
+                          {(() => {
+                            const target = g.players.find(
+                              (p) => p.id === currentActions[0].target,
+                            );
+                            return target
+                              ? `${target.name} — ${current.key === "seer" ? (roleOf(target.role).team === "wolf" ? "Wolf-aligned" : "Not wolf-aligned") : roleOf(target.role).name}`
+                              : "Unknown";
+                          })()}
+                        </div>
+                      )}
+                      <div className="actionrow">
+                        <button
+                          className="secondary"
+                          onClick={record}
+                          disabled={
+                            !selection ||
+                            (current.ability === "link" && !secondary) ||
+                            (current.key === "witch" &&
+                              !(witchMode === "heal"
+                                ? g.potions.heal
+                                : g.potions.poison))
+                          }
+                        >
+                          <Check size={16} /> Record action
+                        </button>
+                        <button className="primary" onClick={advance}>
+                          {g.step === steps.length - 1
+                            ? "Resolve night"
+                            : "Next role"}{" "}
+                          <ChevronRight size={17} />
+                        </button>
+                      </div>
+                      <small className="muted">
+                        {hasAction
+                          ? "✓ Action recorded. You can change it before advancing."
+                          : "Skipping a role records no action."}
+                      </small>
+                    </>
+                  ) : (
+                    <button
+                      className="primary"
+                      onClick={() => set(resolveNight(g))}
+                    >
+                      Bring on the dawn <Sun size={17} />
+                    </button>
+                  )}
+                </section>
+              )}
+              {g.phase === "day" && !g.pendingHunter && (
+                <section className="panel">
+                  <div className="panelhead">
+                    <Sun size={18} />
+                    <h2>Day discussion</h2>
+                  </div>
+                  <p className="muted">
+                    {g.nightResult.length
+                      ? `Lost last night: ${g.nightResult.join(", ")}`
+                      : "No one died last night."}
+                  </p>
+                  {g.silenced.length > 0 && (
+                    <p className="muted">
+                      Silenced:{" "}
+                      {g.silenced
+                        .map((id) => g.players.find((p) => p.id === id)?.name)
+                        .join(", ")}
+                    </p>
+                  )}
+                  <button
+                    className="primary big"
+                    onClick={() => update({ phase: "vote", votes: {} })}
+                  >
+                    Begin the vote <Vote size={18} />
+                  </button>
+                </section>
+              )}
+              {g.phase === "vote" && !g.pendingHunter && (
+                <section className="panel">
+                  <div className="panelhead">
+                    <Vote size={18} />
+                    <h2>Record the votes</h2>
+                  </div>
+                  <p className="muted">
+                    Choose each living player's vote. A tie means nobody is
+                    eliminated.
+                  </p>
+                  <div className="voterlist">
+                    {players.map((p) => (
+                      <label key={p.id}>
+                        <span>{p.name}</span>
+                        <select
+                          value={g.votes[p.id] || ""}
+                          onChange={(e) =>
+                            update({
+                              votes: { ...g.votes, [p.id]: e.target.value },
+                            })
+                          }
+                        >
+                          <option value="">Abstain / not recorded</option>
+                          {players
+                            .filter((t) => t.id !== p.id)
+                            .map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                  <button
+                    className="primary big"
+                    onClick={() => set(resolveVote(g))}
+                  >
+                    Tally votes and continue <ChevronRight size={18} />
+                  </button>
+                </section>
+              )}
+            </div>
+            <div className="sidecolumn">
+              <section className="panel">
+                <div className="panelhead">
+                  <Users size={18} />
+                  <h2>Village roster</h2>
+                  <span className="pill">{players.length} alive</span>
+                </div>
+                <div className="roster">
+                  {g.players.map((p) => (
+                    <div
+                      className={"person " + (!p.alive ? "dead" : "")}
+                      key={p.id}
+                    >
+                      <div className="avatar">
+                        {p.name.slice(0, 1).toUpperCase()}
+                      </div>
+                      <div className="personinfo">
+                        <strong>{p.name}</strong>
+                        <small>{roleOf(p.role).name}</small>
+                      </div>
+                      <span
+                        className={"status " + (p.alive ? "living" : "fallen")}
+                      >
+                        {p.alive ? "Alive" : "Dead"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+              <section className="panel">
+                <div className="panelhead">
+                  <BookOpen size={18} />
+                  <h2>Chronicle</h2>
+                </div>
+                {g.history.length === 0 ? (
+                  <p className="muted">
+                    The story has yet to claim its first victim.
+                  </p>
+                ) : (
+                  g.history
+                    .slice(-5)
+                    .reverse()
+                    .map((h, i) => (
+                      <div className="logline" key={i}>
+                        {h}
+                      </div>
+                    ))
+                )}
+              </section>
+            </div>
+          </div>
+        )}
+        {tab === "players" && g.phase !== "setup" && (
+          <div className="overlaypanel">
+            <button className="back" onClick={() => setTab("game")}>
+              <ArrowLeft size={16} /> Back to game
+            </button>
+            <h2>Full player roster</h2>
+            <div className="roster full">
+              {g.players.map((p) => (
+                <div className="person" key={p.id}>
+                  <div className="avatar">{p.name[0]}</div>
+                  <div className="personinfo">
+                    <strong>{p.name}</strong>
+                    <small>
+                      {roleOf(p.role).name} · {roleOf(p.role).team}
+                    </small>
+                  </div>
+                  <span className={"status " + (p.alive ? "living" : "fallen")}>
+                    {p.alive ? "Alive" : "Dead"}
+                  </span>
+                  <button
+                    className="smallbtn"
+                    onClick={() => setReveal(reveal === p.id ? null : p.id)}
+                  >
+                    {reveal === p.id ? "Hide" : "Reveal"}
+                  </button>
+                  {reveal === p.id && (
+                    <div className="revealed">{roleOf(p.role).description}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <p className="muted">
+              Moderator-only screen. Keep it hidden from players.
+            </p>
+          </div>
+        )}
+        {tab === "log" && g.phase !== "setup" && (
+          <div className="overlaypanel">
+            <button className="back" onClick={() => setTab("game")}>
+              <ArrowLeft size={16} /> Back to game
+            </button>
+            <h2>The chronicle</h2>
+            {g.history.length === 0 ? (
+              <p>No events recorded yet.</p>
+            ) : (
+              g.history.map((h, i) => (
+                <div className="logline" key={i}>
+                  {h}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </main>
+      {confirmReset && (
+        <div className="modalback">
+          <div className="modal">
+            <Skull size={28} />
+            <h2>Begin a new story?</h2>
+            <p>
+              This will erase the current game. Your current progress is saved
+              only in this browser.
+            </p>
+            <div className="actionrow">
+              <button
+                className="secondary"
+                onClick={() => setConfirmReset(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="primary"
+                onClick={() => {
+                  reset();
+                  setTab("game");
+                  setConfirmReset(false);
+                }}
+              >
+                Reset game
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+);
