@@ -16,8 +16,6 @@ import {
   Eye,
   Vote,
   BookOpen,
-  Plus,
-  Minus,
   Check,
   ArrowLeft,
   Trophy,
@@ -322,14 +320,6 @@ function App() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [reveal, setReveal] = useState<string | null>(null);
   const [names, setNames] = useState(defaultNames.join("\n"));
-  const [counts, setCounts] = useState<Partial<Record<RoleId, number>>>({
-    werewolf: 2,
-    seer: 1,
-    doctor: 1,
-    witch: 1,
-    hunter: 1,
-    villager: 6,
-  });
   const [setupError, setSetupError] = useState("");
   const [selection, setSelection] = useState("");
   const [secondary, setSecondary] = useState("");
@@ -340,7 +330,6 @@ function App() {
     steps = nightSteps(g),
     current = steps[g.step],
     actor = current?.actors[0],
-    total = Object.values(counts).reduce((sum, count) => sum + (count || 0), 0),
     people = names
       .split("\n")
       .map((n) => n.trim())
@@ -374,25 +363,19 @@ function App() {
       setSetupError("Player names must be unique.");
       return;
     }
-    if (total !== people.length) {
-      setSetupError(`The deck needs ${people.length} cards (currently ${total}).`);
-      return;
-    }
-    if (!Object.entries(counts).some(([role, count]) => count && roleOf(role as RoleId).team === "wolf")) {
-      setSetupError("Include at least one wolf-aligned card.");
-      return;
-    }
+    const narratedRoles = Object.fromEntries(
+      ROLES.filter((role) => role.night).map((role) => [role.id, 1]),
+    ) as Partial<Record<RoleId, number>>;
     set({
       ...initialGame(),
       players: people.map((name) => ({
         id: crypto.randomUUID(),
         name,
-        role: "villager",
         alive: true,
       })),
       phase: "night",
       cardsOnly: true,
-      deckRoles: counts,
+      deckRoles: narratedRoles,
       settings: g.settings,
     });
     setSetupError("");
@@ -454,7 +437,6 @@ function App() {
   function revealElimination() {
     if (!awaitingReveal || !eliminatedRole) return;
     const revealed = roleOf(eliminatedRole);
-    const remaining = Math.max(0, (g.deckRoles[eliminatedRole] || 0) - 1);
     const wasDayVote = g.history.at(-1)?.includes(" vote") ?? false;
     const jesterWon = eliminatedRole === "jester" && wasDayVote;
     const players = g.players.map((player) =>
@@ -466,7 +448,7 @@ function App() {
     set({
       ...g,
       players,
-      deckRoles: { ...g.deckRoles, [eliminatedRole]: remaining },
+      deckRoles: g.deckRoles,
       history: [...g.history, announcement],
       pendingHunter: eliminatedRole === "hunter" ? awaitingReveal.id : g.pendingHunter,
       winner: jesterWon ? "Jester" : g.winner,
@@ -567,7 +549,7 @@ function App() {
             onSetup={() => setSetupView("setup")}
           />
         ) : (
-          <div className="setupgrid">
+          <div className="setupgrid no-role-setup">
             <section className="panel">
               <div className="panelhead">
                 <Users size={18} />
@@ -584,29 +566,6 @@ function App() {
                 rows={14}
                 spellCheck={false}
               />
-            </section>
-            <section className="panel">
-              <div className="panelhead">
-                <Shield size={18} />
-                <h2>Cards in the deck</h2>
-                <span className="pill">{total} / {people.length}</span>
-              </div>
-              <p className="muted">
-                Enter only the card mix so the moderator calls the right night
-                phases. The app never records who holds each role.
-              </p>
-              <div className="rolelist">
-                {ROLES.map((role) => (
-                  <div className="roleline" key={role.id}>
-                    <div><strong>{role.name}</strong><small>{role.description}</small></div>
-                    <div className="counter">
-                      <button aria-label={`Remove ${role.name}`} onClick={() => setCounts({...counts, [role.id]: Math.max(0, (counts[role.id] || 0) - 1)})}><Minus size={13} /></button>
-                      <span>{counts[role.id] || 0}</span>
-                      <button aria-label={`Add ${role.name}`} disabled={!!role.unique && !!counts[role.id]} onClick={() => setCounts({...counts, [role.id]: (counts[role.id] || 0) + 1})}><Plus size={13} /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </section>
             <section className="panel settings">
               <div className="panelhead">
@@ -758,7 +717,7 @@ function App() {
                     onChange={(event) => setEliminatedRole(event.target.value as RoleId | "")}
                   >
                     <option value="">Choose the revealed role…</option>
-                    {ROLES.filter((role) => (g.deckRoles[role.id] || 0) > 0).map((role) => (
+                    {ROLES.map((role) => (
                       <option key={role.id} value={role.id}>{role.name}</option>
                     ))}
                   </select>
@@ -846,7 +805,7 @@ function App() {
                           manually; potion use is optional.
                         </p>
                       )}
-                      <div className="targets">
+                      {current.ability !== "none" && <div className="targets">
                         {players
                           .filter(
                             (p) =>
@@ -864,7 +823,7 @@ function App() {
                               {selection === p.id && <Check size={15} />}
                             </button>
                           ))}
-                      </div>
+                      </div>}
                       {current.ability === "link" && (
                         <>
                           <p className="muted">Choose the second lover</p>
@@ -893,13 +852,13 @@ function App() {
                               (p) => p.id === currentActions[0].target,
                             );
                             return target
-                              ? `${target.name} — ${current.key === "seer" ? (roleOf(target.role).team === "wolf" ? "Wolf-aligned" : "Not wolf-aligned") : roleOf(target.role).name}`
+                              ? `${target.name} — ${current.key === "seer" ? (roleOf(target.role!).team === "wolf" ? "Wolf-aligned" : "Not wolf-aligned") : roleOf(target.role!).name}`
                               : "Unknown";
                           })()}
                         </div>
                       )}
                       <div className="actionrow">
-                        <button
+                        {current.ability !== "none" && <button
                           className="secondary"
                           onClick={record}
                           disabled={
@@ -912,7 +871,7 @@ function App() {
                           }
                         >
                           <Check size={16} /> {current.ability === "kill" ? "Record elimination target" : current.ability === "inspect" ? "Record pointed player" : "Record action"}
-                        </button>
+                        </button>}
                         <button className="primary" onClick={advance}>
                           {g.step === steps.length - 1
                             ? "Resolve night"
@@ -921,7 +880,9 @@ function App() {
                         </button>
                       </div>
                       <small className="muted">
-                        {hasAction
+                        {current.ability === "none"
+                          ? "Night One is recognition only. No wolf target is selected."
+                          : hasAction
                           ? "✓ Action recorded. You can change it before advancing."
                           : "Skipping a role records no action."}
                       </small>
@@ -1024,7 +985,7 @@ function App() {
                       </div>
                       <div className="personinfo">
                         <strong>{p.name}</strong>
-                        <small>{g.cardsOnly ? (p.revealedRole ? roleOf(p.revealedRole).name : p.alive ? "Role kept on physical card" : "Role awaiting reveal") : roleOf(p.role).name}</small>
+                        <small>{g.cardsOnly ? (p.revealedRole ? roleOf(p.revealedRole).name : p.alive ? "Role kept on physical card" : "Role awaiting reveal") : roleOf(p.role!).name}</small>
                       </div>
                       <span
                         className={"status " + (p.alive ? "living" : "fallen")}
@@ -1070,7 +1031,7 @@ function App() {
                   <div className="avatar">{p.name[0]}</div>
                   <div className="personinfo">
                     <strong>{p.name}</strong>
-                    <small>{g.cardsOnly ? (p.revealedRole ? roleOf(p.revealedRole).name : p.alive ? "Role kept on physical card" : "Role awaiting reveal") : `${roleOf(p.role).name} · ${roleOf(p.role).team}`}</small>
+                    <small>{g.cardsOnly ? (p.revealedRole ? roleOf(p.revealedRole).name : p.alive ? "Role kept on physical card" : "Role awaiting reveal") : `${roleOf(p.role!).name} · ${roleOf(p.role!).team}`}</small>
                   </div>
                   <span className={"status " + (p.alive ? "living" : "fallen")}>
                     {p.alive ? "Alive" : "Dead"}
@@ -1082,7 +1043,7 @@ function App() {
                     {reveal === p.id ? "Hide" : "Reveal"}
                   </button>}
                   {!g.cardsOnly && reveal === p.id && (
-                    <div className="revealed">{roleOf(p.role).description}</div>
+                    <div className="revealed">{roleOf(p.role!).description}</div>
                   )}
                 </div>
               ))}

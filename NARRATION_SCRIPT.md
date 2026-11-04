@@ -13,9 +13,12 @@ Suggested delivery: 0.85–0.9× conversational speed, restrained emotion, clean
    “Night one begins. Everyone, close your eyes.”
 
 3. `01-wolves-wake.mp3`  
-   “Werewolves, open your eyes. Look around and recognise the other werewolves. Together, point to one player to eliminate. When your choice is made, close your eyes.”
+   “Werewolves, open your eyes. Look around and recognise the other werewolves. Werewolves, close your eyes. No one is eliminated on the first night.”
 
-4. `02-serial-killer-wake.mp3`  
+4. `01-wolves-night-two.mp3`<br>
+   “Werewolves, open your eyes. Together, point to one player to eliminate. When your choice is made, close your eyes.”
+
+5. `02-serial-killer-wake.mp3`<br>
    “A lone shadow stalks the village. Choose your victim.”
 
 5. `03-seer-wake.mp3`  

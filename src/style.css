@@ -232,6 +232,9 @@ header {
   gap: 18px;
   align-items: start;
 }
+.setupgrid.no-role-setup {
+  grid-template-columns: 1fr;
+}
 .settings {
   grid-column: 1/-1;
 }
