@@ -4,6 +4,8 @@ A local-first, mobile-friendly React + TypeScript moderator dashboard with drama
 
 The header includes optional looping horror ambience. Browsers require the moderator to tap the ambience control before audio can begin; narration remains independently controlled from the game panel.
 
+The opening screen includes an optional narrated introduction, a narrated game-flow guide, and individually playable role objectives. Visible captions accompany every explanation, and ambience automatically ducks while speech is playing.
+
 ## Run
 
 ```bash

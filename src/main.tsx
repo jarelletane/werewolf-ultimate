@@ -208,10 +208,92 @@ function AmbienceControl() {
   );
 }
 
+function WelcomeScreen({
+  showGuide,
+  onShowGuide,
+  onSetup,
+}: {
+  showGuide: boolean;
+  onShowGuide: () => void;
+  onSetup: () => void;
+}) {
+  const teamObjective: Record<string, string> = {
+    village: "Find and eliminate every wolf-aligned player.",
+    wolf: "Survive until the wolves equal or outnumber the Village.",
+    neutral: "Complete the unique win condition printed on the role card.",
+  };
+  const introduction =
+    "Welcome to the village. By day, the village debates and votes. By night, hidden roles wake and act. Keep your card secret, listen carefully, and decide whom to trust before the wolves take control.";
+  const gameExplanation =
+    "First, deal the physical role cards. Each player secretly checks their card. When night falls, everyone closes their eyes and the moderator follows the prompts while active roles silently choose their targets. At dawn, reveal the victims and discuss what happened. Every surviving player may make their case before the village votes to eliminate one suspect. Continue through night and day until a faction or special role completes its objective.";
+  return (
+    <div className="welcome-screen">
+      <section className="panel welcome-hero">
+        <div className="moonart"><Moon size={42} /></div>
+        <div className="eyebrow">A SOCIAL DEDUCTION GAME</div>
+        <h2>Welcome to the village</h2>
+        <p>
+          By day, the village debates and votes. By night, hidden roles wake
+          and act. Keep your card secret, listen carefully, and decide whom to
+          trust before the wolves take control.
+        </p>
+        <button className="narrate-guide" onClick={() => say(introduction)}>
+          <Volume2 size={16} /> Play introduction
+        </button>
+        <div className="welcome-actions">
+          <button className="primary" onClick={onSetup}>
+            Set up game <ChevronRight size={17} />
+          </button>
+          <button className="secondary" onClick={onShowGuide}>
+            <BookOpen size={17} /> {showGuide ? "Hide guide" : "How to play"}
+          </button>
+        </div>
+      </section>
+      {showGuide && (
+        <div className="guide-content">
+          <section className="panel">
+            <div className="panelhead"><BookOpen size={18} /><h2>How a game works</h2><button className="smallbtn" onClick={() => say(gameExplanation)}><Volume2 size={14} /> Listen</button></div>
+            <div className="game-steps">
+              <div><span>1</span><strong>Deal the cards</strong><p>Each player secretly checks their physical role card. The app only needs the cards included in the deck.</p></div>
+              <div><span>2</span><strong>Play the night</strong><p>Everyone closes their eyes. The moderator follows the app’s prompts while active roles silently choose targets.</p></div>
+              <div><span>3</span><strong>Debate by day</strong><p>Reveal the night’s victims, discuss suspicions, and let every surviving player make their case.</p></div>
+              <div><span>4</span><strong>Vote and survive</strong><p>The village votes to eliminate one suspect. Continue until a faction or special role reaches its objective.</p></div>
+            </div>
+          </section>
+          <section className="panel">
+            <div className="panelhead"><Shield size={18} /><h2>Role objectives</h2></div>
+            <p className="muted">Your card is secret. Follow its objective without openly revealing your role.</p>
+            <div className="role-guide-grid">
+              {ROLES.map((role) => (
+                <article className={`role-guide-card ${role.team}`} key={role.id}>
+                  <div><strong>{role.name}</strong><span>{role.team}</span></div>
+                  <p>{role.description}</p>
+                  <small><b>Objective:</b> {teamObjective[role.team]}</small>
+                  <button
+                    className="role-narrate"
+                    aria-label={`Narrate the ${role.name} objective`}
+                    onClick={() => say(`${role.name}. ${role.description} Your objective is to ${teamObjective[role.team].replace(/^[A-Z]/, (letter) => letter.toLowerCase())}`)}
+                  >
+                    <Volume2 size={13} /> Listen
+                  </button>
+                </article>
+              ))}
+            </div>
+          </section>
+          <button className="primary big guide-start" onClick={onSetup}>
+            Set up the game <ChevronRight size={18} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const { game: g, set, reset } = useGame();
   const [tab, setTab] = useState<"game" | "players" | "log">("game");
   const [voices, setVoices] = useState(false);
+  const [setupView, setSetupView] = useState<"welcome" | "guide" | "setup">("welcome");
   const [confirmReset, setConfirmReset] = useState(false);
   const [reveal, setReveal] = useState<string | null>(null);
   const [names, setNames] = useState(defaultNames.join("\n"));
@@ -452,7 +534,13 @@ function App() {
             </div>
           </div>
         </header>
-        {g.phase === "setup" ? (
+        {g.phase === "setup" ? setupView !== "setup" ? (
+          <WelcomeScreen
+            showGuide={setupView === "guide"}
+            onShowGuide={() => setSetupView(setupView === "guide" ? "welcome" : "guide")}
+            onSetup={() => setSetupView("setup")}
+          />
+        ) : (
           <div className="setupgrid">
             <section className="panel">
               <div className="panelhead">
@@ -1017,6 +1105,7 @@ function App() {
                 onClick={() => {
                   reset();
                   setTab("game");
+                  setSetupView("welcome");
                   setConfirmReset(false);
                 }}
               >

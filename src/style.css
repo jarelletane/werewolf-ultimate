@@ -592,6 +592,117 @@ select:focus {
 .gold {
   color: #e5c98b;
 }
+.welcome-screen {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.welcome-hero {
+  text-align: center;
+  padding: 42px clamp(20px, 6vw, 72px);
+  background: radial-gradient(ellipse at 50% 0%, #342b50 0%, #171d2b 68%);
+}
+.welcome-hero h2 {
+  font-size: clamp(27px, 4vw, 42px);
+  margin: 14px 0;
+}
+.welcome-hero > p {
+  color: #b2b7c8;
+  max-width: 680px;
+  margin: 0 auto 25px;
+  font-size: 16px;
+}
+.welcome-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.narrate-guide {
+  margin: -10px auto 22px;
+  background: transparent;
+  color: #bda9e5;
+  font-size: 12px;
+}
+.welcome-actions button {
+  min-width: 150px;
+}
+.guide-content {
+  animation: guide-in 0.25s ease-out;
+}
+@keyframes guide-in {
+  from { opacity: 0; transform: translateY(-8px); }
+}
+.game-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.game-steps > div {
+  background: #101522;
+  border: 1px solid #2e374b;
+  border-radius: 12px;
+  padding: 16px;
+}
+.game-steps span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #d9c8f4;
+  background: #342e4c;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.game-steps strong {
+  font-size: 13px;
+}
+.game-steps p {
+  color: #929db2;
+  font-size: 12px;
+  margin: 8px 0 0;
+}
+.role-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.role-guide-card {
+  background: #101522;
+  border: 1px solid #30394d;
+  border-left: 3px solid #8794aa;
+  border-radius: 11px;
+  padding: 14px;
+}
+.role-guide-card.wolf { border-left-color: #d47781; }
+.role-guide-card.village { border-left-color: #76bca3; }
+.role-guide-card.neutral { border-left-color: #d5b46e; }
+.role-guide-card > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.role-guide-card strong { font-size: 13px; }
+.role-guide-card span {
+  text-transform: uppercase;
+  color: #8e99ad;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+.role-guide-card p {
+  color: #a4aec0;
+  font-size: 12px;
+  margin: 8px 0;
+}
+.role-guide-card small { color: #c5ccda; line-height: 1.5; }
+.role-narrate {
+  margin-top: 10px;
+  padding: 6px 9px;
+  background: #252c3d;
+  color: #b8c1d0;
+  font-size: 10px;
+}
+.guide-start { margin-bottom: 30px; }
 @media (max-width: 950px) {
   .sidebar {
     width: 70px;
@@ -624,6 +735,9 @@ select:focus {
   }
   .sidecolumn .panel {
     min-width: 0;
+  }
+  .game-steps {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 @media (max-width: 600px) {
@@ -697,5 +811,16 @@ select:focus {
   }
   .actionrow button {
     flex: 1;
+  }
+  .welcome-hero {
+    padding: 28px 18px;
+  }
+  .welcome-actions button,
+  .role-guide-grid {
+    width: 100%;
+  }
+  .game-steps,
+  .role-guide-grid {
+    grid-template-columns: 1fr;
   }
 }
