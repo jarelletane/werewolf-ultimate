@@ -51,9 +51,34 @@ const useGame = create<Store>()(
     { name: "werewolf-ultimate-v1" },
   ),
 );
+
+const AMBIENCE_VOLUME = 0.18;
+const DUCKED_VOLUME = 0.05;
+let ambienceFade: number | undefined;
+
+const fadeAmbience = (target: number) => {
+  const audio = document.querySelector<HTMLAudioElement>("#ambience-audio");
+  if (!audio) return;
+  window.clearInterval(ambienceFade);
+  const start = audio.volume;
+  const steps = 12;
+  let step = 0;
+  ambienceFade = window.setInterval(() => {
+    step += 1;
+    audio.volume = start + (target - start) * (step / steps);
+    if (step >= steps) window.clearInterval(ambienceFade);
+  }, 30);
+};
+
+const stopNarration = () => {
+  window.speechSynthesis?.cancel();
+  fadeAmbience(AMBIENCE_VOLUME);
+};
+
 const say = (text: string) => {
   if (!("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
+  fadeAmbience(DUCKED_VOLUME);
   const utter = new SpeechSynthesisUtterance(text);
   utter.rate = 0.83;
   utter.pitch = 0.75;
@@ -66,6 +91,8 @@ const say = (text: string) => {
     ) ||
     voices.find((voice) => voice.lang.startsWith("en")) ||
     null;
+  utter.onend = () => fadeAmbience(AMBIENCE_VOLUME);
+  utter.onerror = () => fadeAmbience(AMBIENCE_VOLUME);
   window.speechSynthesis.speak(utter);
 };
 const defaultNames = [
@@ -137,7 +164,7 @@ function AmbienceControl() {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.volume = 0.18;
+    audio.volume = AMBIENCE_VOLUME;
     return () => audio.pause();
   }, []);
 
@@ -160,6 +187,7 @@ function AmbienceControl() {
   return (
     <div className="ambience-control">
       <audio
+        id="ambience-audio"
         ref={audioRef}
         src="/audio/horror-ambience.mp3"
         preload="none"
@@ -575,7 +603,7 @@ function App() {
                       </button>
                       <button
                         onClick={() => {
-                          window.speechSynthesis?.cancel();
+                          stopNarration();
                           setVoices(false);
                         }}
                       >
