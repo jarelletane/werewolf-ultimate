@@ -31,7 +31,6 @@ import {
   nightSteps,
   alive,
   resolveNight,
-  resolveVote,
   eliminate,
   checkWinner,
   Action,
@@ -318,7 +317,7 @@ function App() {
   const [voices, setVoices] = useState(false);
   const [setupView, setSetupView] = useState<"welcome" | "guide" | "setup">("welcome");
   const [confirmReset, setConfirmReset] = useState(false);
-  const [reveal, setReveal] = useState<string | null>(null);
+  const [showEndGame, setShowEndGame] = useState(false);
   const [names, setNames] = useState(defaultNames.join("\n"));
   const [setupError, setSetupError] = useState("");
   const [selection, setSelection] = useState("");
@@ -326,6 +325,7 @@ function App() {
   const [witchMode, setWitchMode] = useState<"heal" | "poison">("heal");
   const [manualTarget, setManualTarget] = useState("");
   const [eliminatedRole, setEliminatedRole] = useState<RoleId | "">("");
+  const [voteTarget, setVoteTarget] = useState("");
   const players = alive(g),
     steps = nightSteps(g),
     current = steps[g.step],
@@ -444,19 +444,44 @@ function App() {
         ? { ...player, revealedRole: eliminatedRole }
         : player,
     );
-    const announcement = `${awaitingReveal.name}, the ${revealed.name}, has been eliminated.`;
+    const publicAnnouncement = g.settings.revealRoles
+      ? `${awaitingReveal.name}, the ${revealed.name}, has been eliminated.`
+      : `${awaitingReveal.name} has been eliminated.`;
+    const privateRecord = `${awaitingReveal.name} was the ${revealed.name}.`;
     set({
       ...g,
       players,
       deckRoles: g.deckRoles,
-      history: [...g.history, announcement],
+      history: [...g.history, g.settings.revealRoles ? publicAnnouncement : privateRecord],
       pendingHunter: eliminatedRole === "hunter" ? awaitingReveal.id : g.pendingHunter,
       winner: jesterWon ? "Jester" : g.winner,
       phase: jesterWon ? "ended" : g.phase,
     });
-    say(announcement);
+    say(publicAnnouncement);
     setVoices(true);
     setEliminatedRole("");
+  }
+  function declareWinner(winner: "Village" | "Werewolves") {
+    const narration = winner === "Village"
+      ? "The final shadow has fallen. The Werewolves have been destroyed. The Village has won."
+      : "The village has fallen. The monsters have won. The Werewolves have claimed the village.";
+    set({ ...g, winner, phase: "ended", history: [...g.history, `${winner} victory declared by the moderator`] });
+    say(narration);
+    setShowEndGame(false);
+  }
+  function endWithoutWinner() {
+    set({ ...g, winner: "No winner", phase: "ended", history: [...g.history, "The moderator ended the game"] });
+    stopNarration();
+    setShowEndGame(false);
+  }
+  function finishDayElimination(target: string | null) {
+    if (!target) {
+      set({ ...g, phase: "night", round: g.round + 1, step: 0, actions: [], votes: {}, silenced: [], tieCandidates: [], isRevote: false, history: [...g.history, `Day ${g.round}: no elimination`] });
+    } else {
+      const next = eliminate(g, [target], `Day ${g.round} vote`);
+      set({ ...next, phase: "night", round: g.round + 1, step: 0, actions: [], votes: {}, silenced: [], tieCandidates: [], isRevote: false });
+    }
+    setVoteTarget("");
   }
   const currentActions = current
     ? g.actions.filter((a) => current.actors.some((p) => p.id === a.actor))
@@ -528,6 +553,10 @@ function App() {
           </div>
           <div className="header-actions">
             <AmbienceControl />
+            {g.phase !== "setup" && <>
+              {g.phase !== "ended" && <button className="header-control" onClick={() => setShowEndGame(true)}><Skull size={15} /><span>End game</span></button>}
+              <button className="header-control" onClick={() => setConfirmReset(true)}><RotateCcw size={15} /><span>Restart</span></button>
+            </>}
             <div className="phasebadge">
               {g.phase === "night" ? (
                 <Moon size={16} />
@@ -629,7 +658,7 @@ function App() {
                 <section className="panel hero">
                   <Trophy className="gold" size={36} />
                   <div className="eyebrow">THE FINAL CHAPTER</div>
-                  <h2>{g.winner} win!</h2>
+                  <h2>{g.winner === "No winner" ? "Game ended" : `${g.winner} win!`}</h2>
                   <p>
                     The village's fate has been sealed. Reveal the roles below,
                     or begin a new story.
@@ -709,8 +738,7 @@ function App() {
                   <h3>Reveal the eliminated card</h3>
                   <p>
                     Check {awaitingReveal.name}'s physical card, then select it
-                    here. The app will announce the result and remove that role
-                    from future night calls.
+                    here. The role is {g.settings.revealRoles ? "announced aloud" : "recorded privately"}.
                   </p>
                   <select
                     value={eliminatedRole}
@@ -722,7 +750,7 @@ function App() {
                     ))}
                   </select>
                   <button className="primary" disabled={!eliminatedRole} onClick={revealElimination}>
-                    <Volume2 size={16} /> Reveal and announce
+                    <Volume2 size={16} /> {g.settings.revealRoles ? "Reveal and announce" : "Record role privately"}
                   </button>
                 </section>
               )}
@@ -771,9 +799,9 @@ function App() {
                         {current.name}
                       </p>
                       <p className="muted">
-                        Select a target. The moderator records actions
-                        privately. For multiple pack members, one shared target
-                        is used.
+                        {current.ability === "none"
+                          ? "This is an introduction step only. Follow the narration, then continue."
+                          : "Select the player indicated by the active role. The moderator records the action privately."}
                       </p>
                       {current.key === "witch" && (
                         <div className="switch">
@@ -928,42 +956,23 @@ function App() {
                 <section className="panel">
                   <div className="panelhead">
                     <Vote size={18} />
-                    <h2>Record the votes</h2>
+                    <h2>Record the elimination</h2>
                   </div>
                   <p className="muted">
-                    Choose each living player's vote. A tie means nobody is
-                    eliminated.
+                    Run the vote with the group, then record only the final player removed from the round.
                   </p>
-                  <div className="voterlist">
-                    {players.map((p) => (
-                      <label key={p.id}>
-                        <span>{p.name}</span>
-                        <select
-                          value={g.votes[p.id] || ""}
-                          onChange={(e) =>
-                            update({
-                              votes: { ...g.votes, [p.id]: e.target.value },
-                            })
-                          }
-                        >
-                          <option value="">Abstain / not recorded</option>
-                          {players
-                            .filter((t) => t.id !== p.id)
-                            .map((t) => (
-                              <option key={t.id} value={t.id}>
-                                {t.name}
-                              </option>
-                            ))}
-                        </select>
-                      </label>
-                    ))}
-                  </div>
+                  <select className="elimination-select" value={voteTarget} onChange={(event) => setVoteTarget(event.target.value)}>
+                    <option value="">Choose the eliminated player…</option>
+                    {players.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}
+                  </select>
                   <button
                     className="primary big"
-                    onClick={() => set(resolveVote(g))}
+                    disabled={!voteTarget}
+                    onClick={() => finishDayElimination(voteTarget)}
                   >
-                    Tally votes and continue <ChevronRight size={18} />
+                    Confirm elimination <ChevronRight size={18} />
                   </button>
+                  <button className="secondary big" onClick={() => finishDayElimination(null)}>No elimination this round</button>
                 </section>
               )}
             </div>
@@ -985,7 +994,6 @@ function App() {
                       </div>
                       <div className="personinfo">
                         <strong>{p.name}</strong>
-                        <small>{g.cardsOnly ? (p.revealedRole ? roleOf(p.revealedRole).name : p.alive ? "Role kept on physical card" : "Role awaiting reveal") : roleOf(p.role!).name}</small>
                       </div>
                       <span
                         className={"status " + (p.alive ? "living" : "fallen")}
@@ -994,6 +1002,19 @@ function App() {
                       </span>
                     </div>
                   ))}
+                </div>
+              </section>
+              <section className="panel victory-control">
+                <div className="panelhead">
+                  <Trophy size={18} />
+                  <h2>Victory check</h2>
+                </div>
+                <p className="muted">
+                  Because physical cards remain secret, the moderator confirms when all Werewolves are gone or when they equal the remaining non-Werewolves.
+                </p>
+                <div className="victory-buttons">
+                  <button onClick={() => declareWinner("Village")}>Village wins</button>
+                  <button onClick={() => declareWinner("Werewolves")}>Werewolves win</button>
                 </div>
               </section>
               <section className="panel">
@@ -1031,20 +1052,10 @@ function App() {
                   <div className="avatar">{p.name[0]}</div>
                   <div className="personinfo">
                     <strong>{p.name}</strong>
-                    <small>{g.cardsOnly ? (p.revealedRole ? roleOf(p.revealedRole).name : p.alive ? "Role kept on physical card" : "Role awaiting reveal") : `${roleOf(p.role!).name} · ${roleOf(p.role!).team}`}</small>
                   </div>
                   <span className={"status " + (p.alive ? "living" : "fallen")}>
                     {p.alive ? "Alive" : "Dead"}
                   </span>
-                  {!g.cardsOnly && <button
-                    className="smallbtn"
-                    onClick={() => setReveal(reveal === p.id ? null : p.id)}
-                  >
-                    {reveal === p.id ? "Hide" : "Reveal"}
-                  </button>}
-                  {!g.cardsOnly && reveal === p.id && (
-                    <div className="revealed">{roleOf(p.role!).description}</div>
-                  )}
                 </div>
               ))}
             </div>
@@ -1071,6 +1082,21 @@ function App() {
           </div>
         )}
       </main>
+      {showEndGame && (
+        <div className="modalback">
+          <div className="modal">
+            <Trophy size={28} />
+            <h2>End the current game</h2>
+            <p>Choose a winner to play the final announcement, or end the session without declaring one.</p>
+            <div className="end-game-options">
+              <button onClick={() => declareWinner("Village")}>Village wins</button>
+              <button onClick={() => declareWinner("Werewolves")}>Werewolves win</button>
+              <button className="secondary" onClick={endWithoutWinner}>End without winner</button>
+              <button className="ghost" onClick={() => setShowEndGame(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
       {confirmReset && (
         <div className="modalback">
           <div className="modal">

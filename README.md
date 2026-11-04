@@ -1,6 +1,6 @@
 # Werewolf Ultimate — Moderator's Desk
 
-A local-first, mobile-friendly React + TypeScript moderator dashboard with dramatic speech narration, configurable roles, a night-action engine, timers, voting, a player roster, autosave, and win detection.
+A local-first, mobile-friendly React + TypeScript moderator dashboard for games played with physical role cards. It includes dramatic speech narration, night-action resolution, timers, voting, a player roster, autosave, and moderator-confirmed victory.
 
 The header includes optional looping horror ambience. Browsers require the moderator to tap the ambience control before audio can begin; narration remains independently controlled from the game panel.
 
@@ -20,10 +20,10 @@ Open the Vite URL printed in your terminal. For a production build run `npm run 
 1. Deal your physical role cards and replace the sample player names. The app never assigns roles, asks for the deck composition, or records which player holds a role.
 2. Start the game. Keep the moderator dashboard private while recording night actions; living players' roles are never entered or displayed.
    Night One is for wolf-pack recognition and role setup only; the wolves do not select or eliminate a victim until Night Two.
-3. During the night, select each role's target, record its action, and advance. Skip a role to record no action.
+3. During Night One, introduce the Wolves, link the Lovers if Cupid is present, perform investigations, and introduce the Doctor and Witch without using their abilities. No player can die. From Night Two onward, record each active role's target and skip roles not present or already eliminated.
 4. At dawn, the engine resolves the attacks, protections, potions, and lovers recorded by the moderator.
-5. When someone is eliminated, check their physical card and select the revealed role. The app announces it and removes that role from later night calls; roles are never assigned to players beforehand.
-6. Run discussion, then record each player's vote. Ties result in no elimination.
+5. When someone is eliminated, check their physical card and record the revealed role. The app announces it only when role reveals are enabled; roles are never assigned to players beforehand.
+6. Run discussion and voting with the group, then record only the player eliminated from the round—or choose no elimination after a tie.
 7. Repeat until the moderator confirms the physical-card win condition. Game state is autosaved in localStorage.
 
 ## Rules and limitations
@@ -34,10 +34,10 @@ This version is single-device and moderator-only. There is no networked role dis
 
 ## Structure
 
-- `src/engine/game.ts`: pure role catalog, random role assignment, action resolution, victory logic
+- `src/engine/game.ts`: role catalog, night sequence, action resolution, voting, and tie-revote logic
 - `src/main.tsx`: React moderator dashboard, setup, timers, voting, narration
 - `src/style.css`: responsive visual design
 
 ## Next iterations
 
-Add explicit action-queue validation and per-role rule variants, secure QR player role reveal, proper offline PWA caching, export/import of games, and scenario tests for more advanced interactions.
+Add configurable house-rule variants, proper offline PWA caching, export/import of games, and broader scenario tests for advanced roles.
