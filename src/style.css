@@ -854,6 +854,34 @@ select:focus {
 .inferred-winner .eyebrow {
   margin: 14px 0 8px;
 }
+.required-role-reveal {
+  z-index: 40;
+}
+.required-role-reveal .modal {
+  max-width: 470px;
+}
+.required-role-reveal .eyebrow {
+  margin: 14px 0 8px;
+}
+.required-role-reveal label {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 10px;
+  color: #c4cada;
+  font-size: 12px;
+  font-weight: 600;
+}
+.required-role-reveal small {
+  display: block;
+  margin-bottom: 18px;
+  color: #929db2;
+}
+.day-theme .required-role-reveal label {
+  color: #574d3e;
+}
+.day-theme .required-role-reveal small {
+  color: #756a58;
+}
 .gold {
   color: #e5c98b;
 }

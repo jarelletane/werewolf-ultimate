@@ -1427,27 +1427,6 @@ function App() {
                   )}
                 </>
               )}
-              {awaitingReveal && (
-                <section className="panel danger">
-                  <h3>Reveal the eliminated card</h3>
-                  <p>
-                    Check {awaitingReveal.name}'s physical card, then select it
-                    here. The role is {g.settings.revealRoles ? "announced aloud" : "recorded privately"}.
-                  </p>
-                  <select
-                    value={eliminatedRole}
-                    onChange={(event) => setEliminatedRole(event.target.value as RoleId | "")}
-                  >
-                    <option value="">Choose the revealed role…</option>
-                    {ROLES.filter((role) => (g.deckRoles[role.id] || 0) > 0).map((role) => (
-                      <option key={role.id} value={role.id}>{role.name}</option>
-                    ))}
-                  </select>
-                  <button className="primary" disabled={!eliminatedRole} onClick={revealElimination}>
-                    <Volume2 size={16} /> {g.settings.revealRoles ? "Reveal and announce" : "Record role privately"}
-                  </button>
-                </section>
-              )}
               {g.pendingHunter && !awaitingReveal && (
                 <section className="panel danger">
                   <h3>Hunter's final shot</h3>
@@ -1811,6 +1790,44 @@ function App() {
           </div>
         )}
       </main>
+      {awaitingReveal && (
+        <div className="modalback required-role-reveal" role="dialog" aria-modal="true" aria-labelledby="role-reveal-title">
+          <div className="modal">
+            <Skull size={30} />
+            <div className="eyebrow">Required before continuing</div>
+            <h2 id="role-reveal-title">Record {awaitingReveal.name}’s role</h2>
+            <p>
+              Check the fallen player’s physical card and select the matching role. This keeps the remaining deck and victory check accurate.
+            </p>
+            <label>
+              Revealed physical card
+              <select
+                autoFocus
+                value={eliminatedRole}
+                onChange={(event) => setEliminatedRole(event.target.value as RoleId | "")}
+              >
+                <option value="">Choose the revealed role…</option>
+                {ROLES.filter((role) => (g.deckRoles[role.id] || 0) > 0).map((role) => (
+                  <option key={role.id} value={role.id}>{role.name}</option>
+                ))}
+              </select>
+            </label>
+            <small>
+              {g.settings.revealRoles
+                ? "This role will be announced to the group."
+                : "This role is recorded privately for the moderator."}
+            </small>
+            {g.players.filter((player) => !player.alive && !player.revealedRole).length > 1 && (
+              <p className="muted">
+                More fallen players remain. Their cards will be recorded next.
+              </p>
+            )}
+            <button className="primary big" disabled={!eliminatedRole} onClick={revealElimination}>
+              <Check size={17} /> Record role and continue
+            </button>
+          </div>
+        </div>
+      )}
       {dawnTransition && (
         <div className="modalback dawn-transition" role="dialog" aria-modal="true" aria-labelledby="dawn-title">
           <div className="modal">
