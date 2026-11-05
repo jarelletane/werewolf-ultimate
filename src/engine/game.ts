@@ -34,25 +34,26 @@ export function nightSteps(g:Game):{key:string;name:string;ability:Ability;actor
  const cardActor=(key:string,name:string):Player[]=>g.cardsOnly?[{id:'card:'+key,name,alive:true}]:[];
  const has=(...roles:RoleId[])=>roles.some(role=>(g.deckRoles[role]||0)>0);
  const actors=(roles:RoleId[],key:string,name:string,fallback:Player[])=>g.cardsOnly?(has(...roles)?cardActor(key,name):[]):fallback;
+ const investigationAbility:Ability=g.cardsOnly?'none':'inspect';
  const cupidAction=g.actions.find(action=>action.type==='link'&&action.secondary);
  if(g.round===1){
   return [
    step('wolves','The Wolf Pack','none',actors(['werewolf','alpha'],'wolves','Wolf card holders',wolves),'Werewolves, open your eyes. Look around and recognise your fellow Werewolves. Werewolves, close your eyes. No one is eliminated on the first night.'),
-   step('seer','The Seer','inspect',actors(['seer','apprentice'],'seer','Seer card holder',active.filter(p=>p.role==='seer'||p.role==='apprentice')),'Seer, open your eyes. Choose one player whose true identity you wish to discover. The moderator will silently indicate whether that player is a Werewolf. Seer, close your eyes.'),
+   step('seer','The Seer',investigationAbility,actors(['seer','apprentice'],'seer','Seer card holder',active.filter(p=>p.role==='seer'||p.role==='apprentice')),'Seer, open your eyes. Choose one player whose true identity you wish to discover. The moderator will silently indicate whether that player is a Werewolf. Seer, close your eyes.'),
    step('cupid','Cupid','link',actors(['cupid'],'cupid','Cupid card holder',active.filter(p=>p.role==='cupid')),'Cupid, open your eyes. Choose two players who shall be bound together by love. Cupid, close your eyes.'),
    step('lovers','The Lovers','none',cupidAction?cardActor('lovers','The two Lovers'):[],'Lovers, open your eyes and recognise one another. Lovers, close your eyes.'),
-   step('detective','The Detective','inspect',actors(['detective'],'detective','Detective card holder',active.filter(p=>p.role==='detective')),'Detective, open your eyes and choose one player to investigate. Detective, close your eyes.'),
+   step('detective','The Detective',investigationAbility,actors(['detective'],'detective','Detective card holder',active.filter(p=>p.role==='detective')),'Detective, open your eyes and choose one player to investigate. Detective, close your eyes.'),
    step('doctor-intro','The Doctor','none',actors(['doctor'],'doctor-intro','Doctor card holder',active.filter(p=>p.role==='doctor')),'Doctor, open your eyes so the moderator can identify you. You do not protect anyone on the first night. Doctor, close your eyes.'),
    step('witch-intro','The Witch','none',actors(['witch'],'witch-intro','Witch card holder',active.filter(p=>p.role==='witch')),'Witch, open your eyes so the moderator can identify you. Your potions are not used on the first night. Witch, close your eyes.'),
   ].filter(item=>item.actors.length>0);
  }
  return [
   step('wolves','The Wolf Pack','kill',actors(['werewolf','alpha'],'wolves','Wolf card holders',wolves),'Werewolves, awaken. Tonight, the hunt begins. Silently choose one player to kill. Werewolves, close your eyes.'),
-  step('seer','The Seer','inspect',actors(['seer','apprentice'],'seer','Seer card holder',active.filter(p=>p.role==='seer'||p.role==='apprentice')),'Seer, awaken. Choose one player to investigate. The moderator will silently indicate whether that player is a Werewolf. Seer, close your eyes.'),
+  step('seer','The Seer',investigationAbility,actors(['seer','apprentice'],'seer','Seer card holder',active.filter(p=>p.role==='seer'||p.role==='apprentice')),'Seer, awaken. Choose one player to investigate. The moderator will silently indicate whether that player is a Werewolf. Seer, close your eyes.'),
   step('doctor','The Doctor','protect',actors(['doctor'],'doctor','Doctor card holder',active.filter(p=>p.role==='doctor')),'Doctor, awaken. Choose one player to protect tonight. Doctor, close your eyes.'),
   step('witch','The Witch','heal',actors(['witch'],'witch','Witch card holder',active.filter(p=>p.role==='witch')),'Witch, awaken. You possess the power to save a life or take one. Use a potion, or save them for later. Witch, close your eyes.'),
   step('serial','The Serial Killer','kill',actors(['serial'],'serial','Serial Killer card holder',active.filter(p=>p.role==='serial')),'Serial Killer, open your eyes and choose your victim. Then close your eyes.'),
-  step('detective','The Detective','inspect',actors(['detective'],'detective','Detective card holder',active.filter(p=>p.role==='detective')),'Detective, open your eyes and choose one player to investigate. Then close your eyes.'),
+  step('detective','The Detective',investigationAbility,actors(['detective'],'detective','Detective card holder',active.filter(p=>p.role==='detective')),'Detective, open your eyes and choose one player to investigate. Then close your eyes.'),
   step('bodyguard','The Bodyguard','protect',actors(['bodyguard'],'bodyguard','Bodyguard card holder',active.filter(p=>p.role==='bodyguard')),'Bodyguard, open your eyes and choose one player to protect. Then close your eyes.'),
   step('silencer','The Silencer','silence',actors(['silencer'],'silencer','Silencer card holder',active.filter(p=>p.role==='silencer')),'Silencer, open your eyes and choose one player to silence. Then close your eyes.'),
  ].filter(item=>item.actors.length>0);

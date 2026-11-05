@@ -1024,7 +1024,7 @@ function App() {
                       </p>
                       <p className="muted">
                         {current.ability === "none"
-                          ? "This is an introduction step only. Follow the narration, then continue."
+                          ? "No app entry is needed for this step. Follow the narration, handle any private response, then continue."
                           : "Select the player indicated by the active role. The moderator records the action privately."}
                       </p>
                       {current.key === "witch" && (
