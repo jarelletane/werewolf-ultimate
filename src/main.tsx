@@ -98,6 +98,7 @@ const AMBIENCE_VOLUME = 0.18;
 const DUCKED_VOLUME = 0.05;
 let ambienceFade: number | undefined;
 let activeUtterance: SpeechSynthesisUtterance | null = null;
+let activeNarrationAudio: HTMLAudioElement | null = null;
 let narrationRun = 0;
 let resumeAmbienceAfterNarration = false;
 
@@ -130,6 +131,9 @@ const restoreAmbience = (run: number) => {
 
 const stopNarration = () => {
   const run = ++narrationRun;
+  activeNarrationAudio?.pause();
+  activeNarrationAudio = null;
+  activeUtterance = null;
   window.speechSynthesis?.cancel();
   restoreAmbience(run);
 };
@@ -170,6 +174,51 @@ const say = (text: string, onComplete?: () => void) => {
     }
   };
   window.speechSynthesis.speak(utter);
+};
+
+type NarrationClip = { src: string; text: string };
+
+const playNarrationClips = (
+  clips: NarrationClip[],
+  fallbackText: string,
+  onComplete?: () => void,
+) => {
+  if (clips.length === 0) {
+    say(fallbackText, onComplete);
+    return;
+  }
+  const background = document.querySelector<HTMLAudioElement>("#ambience-audio");
+  const run = ++narrationRun;
+  activeNarrationAudio?.pause();
+  activeNarrationAudio = null;
+  activeUtterance = null;
+  window.speechSynthesis?.cancel();
+  resumeAmbienceAfterNarration = Boolean(background && !background.paused);
+  fadeAmbience(DUCKED_VOLUME);
+
+  const playAt = (index: number) => {
+    if (run !== narrationRun) return;
+    if (index >= clips.length) {
+      activeNarrationAudio = null;
+      restoreAmbience(run);
+      onComplete?.();
+      return;
+    }
+    const recording = new Audio(clips[index].src);
+    activeNarrationAudio = recording;
+    recording.preload = "auto";
+    recording.onended = () => playAt(index + 1);
+    recording.onerror = () => {
+      activeNarrationAudio = null;
+      say(clips.slice(index).map((clip) => clip.text).join(" "), onComplete);
+    };
+    void recording.play().catch(() => {
+      activeNarrationAudio = null;
+      say(clips.slice(index).map((clip) => clip.text).join(" "), onComplete);
+    });
+  };
+
+  playAt(0);
 };
 function Timer({ seconds, label }: { seconds: number; label: string }) {
   const [remaining, setRemaining] = useState(seconds);
@@ -336,7 +385,15 @@ function WelcomeScreen({
           and act. Keep your card secret, listen carefully, and decide whom to
           trust before the wolves take control.
         </p>
-        <button className="narrate-guide" onClick={() => say(introduction)}>
+        <button
+          className="narrate-guide"
+          onClick={() =>
+            playNarrationClips(
+              [{ src: "/audio/narration/01-welcome.mp3", text: introduction }],
+              introduction,
+            )
+          }
+        >
           <Volume2 size={16} /> Play introduction
         </button>
         <div className="welcome-actions">
@@ -473,16 +530,26 @@ function App() {
   const narration =
     g.phase === "night"
       ? (current
-          ? `${g.step === 0 ? (g.round === 1 ? "Night one begins. Everyone, close your eyes. " : `Night ${g.round} begins. Everyone, close your eyes. `) : ""}${current.prompt}`
+          ? `${g.step === 0 ? (g.round === 1 ? "Night one begins. Everyone, close your eyes. Keep your head lowered and remain silent. " : "Night has fallen once again. Everyone, close your eyes. Keep your head lowered and remain silent. ") : ""}${
+              current.key === "wolves"
+                ? g.round === 1
+                  ? "Werewolves, open your eyes. Look around and recognise your fellow Werewolves."
+                  : "Werewolves, awaken. Silently choose one player to eliminate."
+                : current.key === "seer"
+                  ? g.round === 1
+                    ? "Seer, open your eyes. Point to one player whose allegiance you wish to discover."
+                    : "Seer, awaken. Point to one player whose allegiance you wish to discover."
+                  : current.prompt
+            }`
           : "The night is over. Keep your eyes closed. The first light of dawn breaks over the village. Everyone, open your eyes.")
       : g.phase === "day"
         ? g.round === 1
-          ? "The village awakens peacefully, unaware of the danger lurking among its people. Introduce yourselves, then decide who can be trusted."
+          ? "The village awakens peacefully, unaware of the danger lurking among its people. Open your eyes. Introduce yourselves, and decide who can be trusted."
           : g.nightResult.length
           ? `Morning has come. The village awakens to tragedy. ${g.nightResult.join(" and ")} did not survive the night.`
-          : "The sun rises. Against all odds, every villager has survived the night."
+          : "The sun rises. Against all odds, everyone has survived the night. Open your eyes and begin your discussion."
         : g.phase === "vote"
-          ? "The village has spoken. Cast your votes, and decide who will face the judgement of the crowd."
+          ? "The discussion is over. The village must now choose whether someone will be eliminated."
           : g.phase === "ended"
             ? `The final bell tolls. ${g.winner} have won the game.`
             : "A darkness gathers over the village.";
@@ -491,6 +558,63 @@ function App() {
   );
   const dawnInstruction =
     "Everyone, keep your eyes closed. The night is ending. Wait for the morning call before opening your eyes.";
+  const narrationClips: NarrationClip[] = (() => {
+    if (g.phase === "night" && current) {
+      const clips: NarrationClip[] = [];
+      if (g.step === 0) {
+        clips.push({
+          src: `/audio/narration/${g.round === 1 ? "10-night-one-begins" : "11-night-begins"}.mp3`,
+          text:
+            g.round === 1
+              ? "Night one begins. Everyone, close your eyes. Keep your head lowered and remain silent."
+              : "Night has fallen once again. Everyone, close your eyes. Keep your head lowered and remain silent.",
+        });
+      }
+      if (current.key === "wolves") {
+        clips.push({
+          src: `/audio/narration/${g.round === 1 ? "20-wolves-recognise" : "40-wolves-hunt"}.mp3`,
+          text:
+            g.round === 1
+              ? "Werewolves, open your eyes. Look around and recognise your fellow Werewolves."
+              : "Werewolves, awaken. Silently choose one player to eliminate.",
+        });
+      } else if (current.key === "seer") {
+        clips.push({
+          src: `/audio/narration/${g.round === 1 ? "22-seer-first-choice" : "42-seer-investigate"}.mp3`,
+          text:
+            g.round === 1
+              ? "Seer, open your eyes. Point to one player whose allegiance you wish to discover."
+              : "Seer, awaken. Point to one player whose allegiance you wish to discover.",
+        });
+      }
+      return clips;
+    }
+    if (g.phase === "day" && g.round === 1) {
+      return [{ src: "/audio/narration/61-first-morning.mp3", text: narration }];
+    }
+    if (g.phase === "day" && g.nightResult.length === 0) {
+      return [{ src: "/audio/narration/62-morning-no-deaths.mp3", text: narration }];
+    }
+    if (g.phase === "vote") {
+      return [{ src: "/audio/narration/64-voting-begins.mp3", text: narration }];
+    }
+    return [];
+  })();
+  const closingNarration: NarrationClip | null =
+    g.phase === "night" && current?.key === "wolves"
+      ? {
+          src: `/audio/narration/${g.round === 1 ? "21-wolves-close-first-night" : "41-wolves-close"}.mp3`,
+          text:
+            g.round === 1
+              ? "Werewolves, close your eyes. No one is eliminated on the first night."
+              : "Werewolves, close your eyes.",
+        }
+      : g.phase === "night" && current?.key === "seer"
+        ? {
+            src: "/audio/narration/23-seer-close.mp3",
+            text: "Seer, close your eyes.",
+          }
+        : null;
   useEffect(() => {
     const prior = previousPhase.current;
     previousPhase.current = g.phase;
@@ -607,6 +731,12 @@ function App() {
     setScreen("game");
     const ambience = document.querySelector<HTMLAudioElement>("#ambience-audio");
     if (ambience?.paused) void ambience.play().catch(() => undefined);
+    const opening =
+      "The village is seated. The cards have been dealt. Your role must remain secret. The game now begins.";
+    playNarrationClips(
+      [{ src: "/audio/narration/03-game-begins.mp3", text: opening }],
+      opening,
+    );
   }
   function record() {
     if (!current || !actor) return;
@@ -632,18 +762,33 @@ function App() {
     setSecondary("");
   }
   function advance() {
-    if (g.step < steps.length - 1) {
-      update({ step: g.step + 1 });
-      setSelection("");
-      setSecondary("");
-      setWitchMode("heal");
-    } else {
-      beginDawnTransition();
+    const continueAfterClosing = () => {
+      if (g.step < steps.length - 1) {
+        update({ step: g.step + 1 });
+        setSelection("");
+        setSecondary("");
+        setWitchMode("heal");
+      } else {
+        beginDawnTransition();
+      }
+    };
+    if (closingNarration) {
+      playNarrationClips(
+        [closingNarration],
+        closingNarration.text,
+        continueAfterClosing,
+      );
+      return;
     }
+    continueAfterClosing();
   }
   function beginDawnTransition() {
     setDawnTransition(true);
-    say(dawnInstruction, finishDawnTransition);
+    playNarrationClips(
+      [{ src: "/audio/narration/60-night-ending.mp3", text: dawnInstruction }],
+      dawnInstruction,
+      finishDawnTransition,
+    );
     setVoices(true);
   }
   function finishDawnTransition() {
@@ -701,7 +846,15 @@ function App() {
       ? "The final shadow has fallen. The Werewolves have been destroyed. The Village has won."
       : "The village has fallen. The monsters have won. The Werewolves have claimed the village.";
     set({ ...g, winner, phase: "ended", history: [...g.history, `${winner} victory declared by the moderator`] });
-    say(narration);
+    playNarrationClips(
+      [
+        {
+          src: `/audio/narration/${winner === "Village" ? "70-village-victory" : "71-werewolf-victory"}.mp3`,
+          text: narration,
+        },
+      ],
+      narration,
+    );
     setShowEndGame(false);
   }
   function endWithoutWinner() {
@@ -1006,7 +1159,10 @@ function App() {
                         <>
                           <button
                             onClick={() => {
-                              say(narration);
+                              playNarrationClips(
+                                narrationClips,
+                                narration,
+                              );
                               setVoices(true);
                             }}
                           >
