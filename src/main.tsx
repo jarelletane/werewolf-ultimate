@@ -96,25 +96,25 @@ const useGame = create<Store>()(
 );
 
 const AMBIENCE_VOLUME = 0.18;
-const DUCKED_VOLUME = 0.006;
+const DUCKED_VOLUME = 0.0015;
 let ambienceFade: number | undefined;
 let activeUtterance: SpeechSynthesisUtterance | null = null;
 let activeNarrationAudio: HTMLAudioElement | null = null;
 let narrationRun = 0;
 let resumeAmbienceAfterNarration = false;
 
-const fadeAmbience = (target: number) => {
+const fadeAmbience = (target: number, duration = 360) => {
   const audio = document.querySelector<HTMLAudioElement>("#ambience-audio");
   if (!audio) return;
   window.clearInterval(ambienceFade);
   const start = audio.volume;
-  const steps = 12;
+  const steps = Math.max(1, Math.round(duration / 30));
   let step = 0;
   ambienceFade = window.setInterval(() => {
     step += 1;
     audio.volume = start + (target - start) * (step / steps);
     if (step >= steps) window.clearInterval(ambienceFade);
-  }, 30);
+  }, duration / steps);
 };
 
 const restoreAmbience = (run: number) => {
@@ -148,7 +148,7 @@ const say = (text: string, onComplete?: () => void) => {
   const run = ++narrationRun;
   resumeAmbienceAfterNarration = Boolean(audio && !audio.paused);
   window.speechSynthesis.cancel();
-  fadeAmbience(DUCKED_VOLUME);
+  fadeAmbience(DUCKED_VOLUME, 60);
   const utter = new SpeechSynthesisUtterance(text);
   activeUtterance = utter;
   utter.rate = 0.83;
@@ -195,7 +195,7 @@ const playNarrationClips = (
   activeUtterance = null;
   window.speechSynthesis?.cancel();
   resumeAmbienceAfterNarration = Boolean(background && !background.paused);
-  fadeAmbience(DUCKED_VOLUME);
+  fadeAmbience(DUCKED_VOLUME, 60);
 
   const playAt = (index: number) => {
     if (run !== narrationRun) return;
