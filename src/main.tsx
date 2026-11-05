@@ -761,6 +761,7 @@ function App() {
                               }
                 : null;
   useEffect(() => {
+    if (awaitingReveal) return;
     const prior = previousPhase.current;
     previousPhase.current = g.phase;
     if (prior !== "night" || g.phase !== "day") return;
@@ -784,8 +785,9 @@ function App() {
     rooster.onended = beginMorning;
     rooster.onerror = beginMorning;
     void rooster.play().catch(beginMorning);
-  }, [g.phase]);
+  }, [g.phase, awaitingReveal?.id]);
   useEffect(() => {
+    if (awaitingReveal) return;
     if (g.phase !== "night" && g.phase !== "vote") return;
     if (skipNextAutomaticNarration.current) {
       skipNextAutomaticNarration.current = false;
@@ -794,7 +796,7 @@ function App() {
     if (!narrationCanPlay) return;
     playNarrationClips(narrationClips, narration);
     setVoices(true);
-  }, [g.phase, g.round, g.step]);
+  }, [g.phase, g.round, g.step, awaitingReveal?.id]);
   function update(patch: Partial<Game>) {
     set({ ...g, ...patch });
   }
@@ -1012,6 +1014,7 @@ function App() {
       ? `${awaitingReveal.name}, the ${revealed.name}, has been eliminated.`
       : `${awaitingReveal.name} has been eliminated.`;
     const privateRecord = `${awaitingReveal.name} was the ${revealed.name}.`;
+    const beginsNextNight = wasDayVote && eliminatedRole !== "hunter" && !jesterWon;
     const nextGame: Game = {
       ...g,
       players,
@@ -1019,7 +1022,14 @@ function App() {
       history: [...g.history, g.settings.revealRoles ? publicAnnouncement : privateRecord],
       pendingHunter: eliminatedRole === "hunter" ? awaitingReveal.id : g.pendingHunter,
       winner: jesterWon ? "Jester" : g.winner,
-      phase: jesterWon ? "ended" : g.phase,
+      phase: jesterWon ? "ended" : beginsNextNight ? "night" : g.phase,
+      round: beginsNextNight ? g.round + 1 : g.round,
+      step: beginsNextNight ? 0 : g.step,
+      actions: beginsNextNight ? [] : g.actions,
+      votes: beginsNextNight ? {} : g.votes,
+      silenced: beginsNextNight ? [] : g.silenced,
+      tieCandidates: beginsNextNight ? [] : g.tieCandidates,
+      isRevote: beginsNextNight ? false : g.isRevote,
     };
     set(nextGame);
     if (!jesterWon && !nextGame.pendingHunter) {
@@ -1103,7 +1113,7 @@ function App() {
       );
     } else {
       const next = eliminate(g, [target], `Day ${g.round} vote`);
-      set({ ...next, phase: "night", round: g.round + 1, step: 0, actions: [], votes: {}, silenced: [], tieCandidates: [], isRevote: false });
+      set(next);
     }
     setVoteTarget("");
   }
