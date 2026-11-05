@@ -527,6 +527,7 @@ function App() {
   const [voteTarget, setVoteTarget] = useState("");
   const [dawnTransition, setDawnTransition] = useState(false);
   const previousPhase = useRef(g.phase);
+  const skipNextAutomaticNarration = useRef(false);
   const players = alive(g),
     steps = nightSteps(g),
     current = steps[g.step],
@@ -686,13 +687,30 @@ function App() {
     if (restoreBackground) fadeAmbience(0.035);
     rooster.currentTime = 0;
     rooster.volume = 0.82;
-    const restore = () => {
+    let morningStarted = false;
+    const beginMorning = () => {
+      if (morningStarted) return;
+      morningStarted = true;
       if (restoreBackground) fadeAmbience(AMBIENCE_VOLUME);
+      if (narrationCanPlay) {
+        playNarrationClips(narrationClips, narration);
+        setVoices(true);
+      }
     };
-    rooster.onended = restore;
-    rooster.onerror = restore;
-    void rooster.play().catch(restore);
+    rooster.onended = beginMorning;
+    rooster.onerror = beginMorning;
+    void rooster.play().catch(beginMorning);
   }, [g.phase]);
+  useEffect(() => {
+    if (g.phase !== "night" && g.phase !== "vote") return;
+    if (skipNextAutomaticNarration.current) {
+      skipNextAutomaticNarration.current = false;
+      return;
+    }
+    if (!narrationCanPlay) return;
+    playNarrationClips(narrationClips, narration);
+    setVoices(true);
+  }, [g.phase, g.round, g.step]);
   function update(patch: Partial<Game>) {
     set({ ...g, ...patch });
   }
@@ -787,6 +805,7 @@ function App() {
     setScreen("intro");
   }
   function startGame() {
+    skipNextAutomaticNarration.current = true;
     set({ ...g, phase: "night", round: 1, step: 0, actions: [], votes: {}, history: [] });
     setTab("game");
     setScreen("game");
@@ -797,6 +816,24 @@ function App() {
     playNarrationClips(
       [{ src: "/audio/narration/03-game-begins.mp3", text: opening }],
       opening,
+      () => {
+        const firstNight =
+          "Night one begins. Everyone, close your eyes. Keep your head lowered and remain silent. Werewolves, open your eyes. Look around and recognise your fellow Werewolves.";
+        playNarrationClips(
+          [
+            {
+              src: "/audio/narration/10-night-one-begins.mp3",
+              text: "Night one begins. Everyone, close your eyes. Keep your head lowered and remain silent.",
+            },
+            {
+              src: "/audio/narration/20-wolves-recognise.mp3",
+              text: "Werewolves, open your eyes. Look around and recognise your fellow Werewolves.",
+            },
+          ],
+          firstNight,
+        );
+        setVoices(true);
+      },
     );
   }
   function record() {
@@ -1137,7 +1174,6 @@ function App() {
                 {(
                   [
                     ["discussion", "Discussion timer"],
-                    ["night", "Night action timer"],
                     ["vote", "Voting timer"],
                   ] as const
                 ).map(([key, label]) => (
@@ -1242,7 +1278,7 @@ function App() {
                               setVoices(true);
                             }}
                           >
-                            <Volume2 size={17} /> Play narration
+                            <Volume2 size={17} /> Replay narration
                           </button>
                           <button
                             onClick={() => {
@@ -1263,20 +1299,12 @@ function App() {
                       </span>
                     </div>
                   </section>
-                  <Timer
-                    seconds={
-                      g.phase === "night"
-                        ? g.settings.night
-                        : g.phase === "day"
-                          ? g.settings.discussion
-                          : g.settings.vote
-                    }
-                    label={
-                      g.phase === "night"
-                        ? current?.name || "Night"
-                        : `${g.phase} countdown`
-                    }
-                  />
+                  {g.phase !== "night" && (
+                    <Timer
+                      seconds={g.phase === "day" ? g.settings.discussion : g.settings.vote}
+                      label={`${g.phase} countdown`}
+                    />
+                  )}
                 </>
               )}
               {awaitingReveal && (
