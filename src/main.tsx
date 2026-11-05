@@ -228,7 +228,12 @@ function AmbienceControl({ phase }: { phase: Game["phase"] }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [enabled, setEnabled] = useState(true);
   const [playing, setPlaying] = useState(false);
-  const source = phase === "night" ? "/audio/night-ambience.mp3" : "/audio/horror-ambience.mp3";
+  const source =
+    phase === "night"
+      ? "/audio/night-ambience.mp3"
+      : phase === "day" || phase === "vote"
+        ? "/audio/day-ambience.mp3"
+        : "/audio/horror-ambience.mp3";
 
   useEffect(() => {
     const audio = audioRef.current;
