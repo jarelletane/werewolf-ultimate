@@ -95,7 +95,18 @@ const useGame = create<Store>()(
 );
 
 const AMBIENCE_VOLUME = 0.18;
-const DUCKED_VOLUME = 0.05;
+const DUCKED_VOLUME = 0.018;
+const COMING_SOON_ROLES = new Set<RoleId>([
+  "bodyguard",
+  "detective",
+  "priest",
+  "tough",
+  "silencer",
+  "serial",
+  "jester",
+  "apprentice",
+  "cupid",
+]);
 let ambienceFade: number | undefined;
 let activeUtterance: SpeechSynthesisUtterance | null = null;
 let activeNarrationAudio: HTMLAudioElement | null = null;
@@ -675,6 +686,7 @@ function App() {
         next.villager = (next.villager || 0) + 1;
         return next;
       }
+      if (COMING_SOON_ROLES.has(role)) return current;
       if (roleOf(role).unique && currentValue > 0) return current;
       if ((next.villager || 0) > 0 && role !== "villager") {
         next.villager = (next.villager || 0) - 1;
@@ -1042,11 +1054,17 @@ function App() {
               <div className="rolelist">
                 {ROLES.map((role) => (
                   <div className="roleline" key={role.id}>
-                    <div><strong>{role.name}</strong><small>{role.description}</small></div>
+                    <div>
+                      <strong>
+                        {role.name}
+                        {COMING_SOON_ROLES.has(role.id) && <span className="coming-soon">Coming soon</span>}
+                      </strong>
+                      <small>{role.description}</small>
+                    </div>
                     <div className="counter">
                       <button aria-label={`Remove ${role.name}`} disabled={role.id === "villager" || !(counts[role.id] || 0)} onClick={() => changeRoleCount(role.id, -1)}><Minus size={13} /></button>
                       <span>{counts[role.id] || 0}</span>
-                      <button aria-label={`Add ${role.name}`} disabled={(!!role.unique && !!counts[role.id]) || (role.id === "villager" && cardTotal >= playerCount) || (role.id !== "villager" && cardTotal >= playerCount && !(counts.villager || 0))} onClick={() => changeRoleCount(role.id, 1)}><Plus size={13} /></button>
+                      <button aria-label={`Add ${role.name}`} disabled={COMING_SOON_ROLES.has(role.id) || (!!role.unique && !!counts[role.id]) || (role.id === "villager" && cardTotal >= playerCount) || (role.id !== "villager" && cardTotal >= playerCount && !(counts.villager || 0))} onClick={() => changeRoleCount(role.id, 1)}><Plus size={13} /></button>
                     </div>
                   </div>
                 ))}
