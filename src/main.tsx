@@ -560,6 +560,7 @@ function App() {
   const [voteTarget, setVoteTarget] = useState("");
   const [dawnTransition, setDawnTransition] = useState(false);
   const [roleRevealReady, setRoleRevealReady] = useState(true);
+  const [pendingCriticalNight, setPendingCriticalNight] = useState<Game | null>(null);
   const previousPhase = useRef(g.phase);
   const skipNextAutomaticNarration = useRef(false);
   const players = alive(g),
@@ -828,6 +829,18 @@ function App() {
   function update(patch: Partial<Game>) {
     set({ ...g, ...patch });
   }
+  function isCriticalThreePlayerNight(game: Game) {
+    const living = alive(game).length;
+    const remaining = Object.entries(game.deckRoles).filter(
+      (entry): entry is [RoleId, number] => typeof entry[1] === "number" && entry[1] > 0,
+    );
+    const remainingCards = remaining.reduce((sum, [, count]) => sum + count, 0);
+    const remainingWolves = remaining.reduce(
+      (sum, [role, count]) => sum + (roleOf(role).team === "wolf" ? count : 0),
+      0,
+    );
+    return game.cardsOnly && living === 3 && remainingCards === living && remainingWolves === 1;
+  }
   function changePlayerCount(count: number) {
     const currentNames = names
       .split("\n")
@@ -1060,7 +1073,12 @@ function App() {
       tieCandidates: beginsNextNight ? [] : g.tieCandidates,
       isRevote: beginsNextNight ? false : g.isRevote,
     };
-    set(nextGame);
+    if (beginsNextNight && isCriticalThreePlayerNight(nextGame)) {
+      setPendingCriticalNight(nextGame);
+      set({ ...nextGame, phase: g.phase, round: g.round, step: g.step });
+    } else {
+      set(nextGame);
+    }
     if (!jesterWon && !nextGame.pendingHunter) {
       setSuggestedWinner(inferCardsOnlyWinner(nextGame));
     }
@@ -1128,7 +1146,14 @@ function App() {
         [{ src: "/audio/narration/73-no-elimination.mp3?v=corrected-20261105", text: noElimination }],
         noElimination,
         () => {
-          set({ ...g, phase: "night", round: g.round + 1, step: 0, actions: [], votes: {}, silenced: [], tieCandidates: [], isRevote: false, history: [...g.history, `Day ${g.round}: no elimination`] });
+          const nextNight = { ...g, phase: "night" as const, round: g.round + 1, step: 0, actions: [], votes: {}, silenced: [], tieCandidates: [], isRevote: false, history: [...g.history, `Day ${g.round}: no elimination`] };
+          if (isCriticalThreePlayerNight(nextNight)) {
+            skipNextAutomaticNarration.current = false;
+            setPendingCriticalNight(nextNight);
+            set({ ...nextNight, phase: "vote", round: g.round });
+            return;
+          }
+          set(nextNight);
           const nightOpening =
             "Night has fallen once again. Everyone, close your eyes. Keep your head lowered and remain silent. Werewolves, awaken. Silently choose one player to eliminate.";
           playNarrationClips(
@@ -1155,6 +1180,7 @@ function App() {
       <HomeScreen
         saves={saves || []}
         onNew={() => {
+          setPendingCriticalNight(null);
           setRoleRevealReady(true);
           setGamePaused(false);
           reset();
@@ -1166,6 +1192,7 @@ function App() {
           setScreen("create");
         }}
         onContinue={(save) => {
+          setPendingCriticalNight(null);
           setRoleRevealReady(true);
           setGamePaused(false);
           loadGame(save.id);
@@ -1946,6 +1973,36 @@ function App() {
           </div>
         </div>
       )}
+      {pendingCriticalNight && (
+        <div className="modalback" role="dialog" aria-modal="true" aria-labelledby="critical-night-title">
+          <div className="modal inferred-winner">
+            <Moon size={30} />
+            <div className="eyebrow">Final chance warning</div>
+            <h2 id="critical-night-title">Three players remain. One is a Werewolf.</h2>
+            <div className="script-label">
+              <BookOpen size={14} /> Script — read aloud
+            </div>
+            <p>
+              “Three souls remain, and a Werewolf still walks among you. If the village enters the night and the hunt succeeds, the Werewolf may seize control. This may be your final chance.”
+            </p>
+            <p className="muted">
+              A successful protection or healing action may still prevent the kill. This warning does not declare a winner.
+            </p>
+            <div className="end-game-options">
+              <button
+                className="primary"
+                onClick={() => {
+                  set(pendingCriticalNight);
+                  setPendingCriticalNight(null);
+                }}
+              >
+                Continue into Night <Moon size={16} />
+              </button>
+            </div>
+            <small>Recorded narration coming soon.</small>
+          </div>
+        </div>
+      )}
       {showEndGame && (
         <div className="modalback">
           <div className="modal">
@@ -1980,6 +2037,7 @@ function App() {
               <button
                 className="primary"
                 onClick={() => {
+                  setPendingCriticalNight(null);
                   setRoleRevealReady(true);
                   setGamePaused(false);
                   reset();
