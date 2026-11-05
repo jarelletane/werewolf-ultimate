@@ -743,26 +743,6 @@ function App() {
             <small>THE MODERATOR'S DESK</small>
           </div>
         </div>
-        <div className="nav">
-          <button
-            className={tab === "game" ? "active" : ""}
-            onClick={() => setTab("game")}
-          >
-            <Moon size={18} /> Game director
-          </button>
-          <button
-            className={tab === "players" ? "active" : ""}
-            onClick={() => setTab("players")}
-          >
-            <Users size={18} /> Player roster
-          </button>
-          <button
-            className={tab === "log" ? "active" : ""}
-            onClick={() => setTab("log")}
-          >
-            <BookOpen size={18} /> Chronicle
-          </button>
-        </div>
         <div className="sidebottom">
           <div className="online">
             <span /> Local game · Autosaved
@@ -824,6 +804,21 @@ function App() {
                   <button onClick={() => { setGameMenuOpen(false); setScreen("home"); }}>
                     <Home size={15} /> Home and saved games
                   </button>
+                  {g.phase !== "setup" && (
+                    <>
+                      {tab !== "game" && (
+                        <button onClick={() => { setGameMenuOpen(false); setTab("game"); }}>
+                          <Moon size={15} /> Game director
+                        </button>
+                      )}
+                      <button onClick={() => { setGameMenuOpen(false); setTab("players"); }}>
+                        <Users size={15} /> Player roster
+                      </button>
+                      <button onClick={() => { setGameMenuOpen(false); setTab("log"); }}>
+                        <BookOpen size={15} /> Game chronicle
+                      </button>
+                    </>
+                  )}
                   {g.phase !== "setup" && g.phase !== "ended" && (
                     <button onClick={() => { setGameMenuOpen(false); setShowEndGame(true); }}>
                       <Skull size={15} /> End current game
