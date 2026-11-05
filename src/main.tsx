@@ -226,6 +226,7 @@ function Timer({ seconds, label }: { seconds: number; label: string }) {
 
 function AmbienceControl({ phase }: { phase: Game["phase"] }) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [enabled, setEnabled] = useState(true);
   const [playing, setPlaying] = useState(false);
   const source = phase === "night" ? "/audio/night-ambience.mp3" : "/audio/horror-ambience.mp3";
 
@@ -238,25 +239,41 @@ function AmbienceControl({ phase }: { phase: Game["phase"] }) {
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || audio.getAttribute("src") === source) return;
-    const shouldContinue = !audio.paused || phase === "night";
-    audio.src = source;
-    audio.load();
+    if (!audio) return;
     audio.volume = AMBIENCE_VOLUME;
-    if (shouldContinue) void audio.play().catch(() => setPlaying(false));
-  }, [source, phase]);
+    if (!enabled) {
+      audio.pause();
+      return;
+    }
+
+    void audio.play().catch(() => setPlaying(false));
+  }, [source, enabled]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const unlockAudio = () => {
+      const audio = audioRef.current;
+      if (audio?.paused) void audio.play().catch(() => undefined);
+    };
+    document.addEventListener("pointerdown", unlockAudio, { once: true });
+    document.addEventListener("keydown", unlockAudio, { once: true });
+    return () => {
+      document.removeEventListener("pointerdown", unlockAudio);
+      document.removeEventListener("keydown", unlockAudio);
+    };
+  }, [enabled, source]);
 
   async function toggle() {
     const audio = audioRef.current;
     if (!audio) return;
-    if (playing) {
+    if (enabled) {
+      setEnabled(false);
       audio.pause();
-      setPlaying(false);
       return;
     }
+    setEnabled(true);
     try {
       await audio.play();
-      setPlaying(true);
     } catch {
       setPlaying(false);
     }
@@ -275,14 +292,14 @@ function AmbienceControl({ phase }: { phase: Game["phase"] }) {
       />
       <audio id="morning-rooster" src="/audio/rooster.mp3" preload="auto" />
       <button
-        className={playing ? "ambience-button active" : "ambience-button"}
+        className={enabled ? "ambience-button active" : "ambience-button"}
         onClick={toggle}
-        aria-pressed={playing}
-        aria-label={playing ? "Pause background ambience" : "Play background ambience"}
-        title={playing ? "Pause ambience" : "Play ambience"}
+        aria-pressed={enabled}
+        aria-label={enabled ? "Turn off background ambience" : "Turn on background ambience"}
+        title={enabled ? "Turn off ambience" : "Turn on ambience"}
       >
-        {playing ? <Volume2 size={16} /> : <VolumeX size={16} />}
-        <span>{playing ? "Ambience on" : "Ambience off"}</span>
+        {enabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+        <span>{enabled ? (playing ? "Ambience on" : "Ambience ready") : "Ambience off"}</span>
       </button>
     </div>
   );
