@@ -737,7 +737,7 @@ function App() {
     );
   }
   return (
-    <div className="app">
+    <div className={`app ${g.phase === "day" || g.phase === "vote" ? "day-theme" : "dark-theme"}`}>
       <aside className="sidebar">
         <div className="brand">
           <div className="brandmark">

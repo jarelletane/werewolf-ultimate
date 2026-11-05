@@ -882,6 +882,148 @@ select:focus {
   font-size: 10px;
 }
 .guide-start { margin-bottom: 30px; }
+
+/* A warm parchment daylight palette keeps the medieval character while making
+   the day/night transition immediately obvious. */
+.day-theme {
+  color: #29241d;
+  background:
+    radial-gradient(circle at 55% 0%, #fffdf4 0%, transparent 45%),
+    linear-gradient(145deg, #f4ead5, #e8d8b8);
+}
+.day-theme .sidebar {
+  background: #e4d2ad;
+  border-color: #c6ad7d;
+}
+.day-theme .brandmark {
+  color: #624f2c;
+  background: #f4e7c9;
+  border: 1px solid #c4aa78;
+}
+.day-theme .brand span,
+.day-theme .eyebrow,
+.day-theme .sectiontag,
+.day-theme .panelhead {
+  color: #71552b;
+}
+.day-theme .brand small,
+.day-theme .headerleft p,
+.day-theme .muted,
+.day-theme .personinfo small,
+.day-theme .speech span,
+.day-theme .logline {
+  color: #6f6657;
+}
+.day-theme .panel,
+.day-theme .timer,
+.day-theme .overlaypanel {
+  color: #29241d;
+  background: linear-gradient(145deg, #fffdf7, #f4ead7);
+  border-color: #cfbb94;
+  box-shadow: 0 10px 28px #765b2820;
+}
+.day-theme .hero {
+  background: radial-gradient(ellipse at 50% 0%, #fffaf0 0%, #ecdbb8 72%);
+}
+.day-theme .panelhead h2,
+.day-theme .hero h2,
+.day-theme h1,
+.day-theme h2,
+.day-theme h3,
+.day-theme .personinfo strong {
+  color: #29241d;
+}
+.day-theme .narration,
+.day-theme .hero p {
+  color: #4f4639 !important;
+}
+.day-theme button {
+  color: #30291f;
+  background: #e4d2ad;
+}
+.day-theme .primary {
+  color: #fffaf0;
+  background: #755a2d;
+}
+.day-theme .secondary {
+  background: #d8c39b;
+}
+.day-theme .ghost {
+  background: transparent;
+  border-color: #a99064;
+}
+.day-theme .ambience-button,
+.day-theme .game-menu-trigger {
+  color: #594721;
+  background: #f7ecd5;
+  border-color: #bda574;
+}
+.day-theme .ambience-button.active {
+  color: #285845;
+  background: #dce9dc;
+  border-color: #7ca28f;
+}
+.day-theme .phasebadge,
+.day-theme .pill {
+  color: #594721;
+  background: #f7ecd5;
+  border-color: #bda574;
+}
+.day-theme .game-menu-popover {
+  color: #29241d;
+  background: #fffaf0;
+  border-color: #c8b184;
+  box-shadow: 0 18px 45px #59431d40;
+}
+.day-theme .game-menu-popover strong {
+  color: #75684f;
+}
+.day-theme .game-menu-popover button {
+  background: transparent;
+}
+.day-theme .game-menu-popover button:hover {
+  background: #eadbbc;
+}
+.day-theme textarea,
+.day-theme input,
+.day-theme select {
+  color: #29241d;
+  background: #fffdf7;
+  border-color: #bca67b;
+}
+.day-theme .targets button,
+.day-theme .switch button {
+  border-color: #bca67b;
+}
+.day-theme .targets button.selected,
+.day-theme .switch button.selected {
+  color: #fffaf0;
+  background: #755a2d;
+  border-color: #5f471f;
+}
+.day-theme .person,
+.day-theme .logline {
+  border-color: #d7c5a2;
+}
+.day-theme .avatar {
+  color: #594721;
+  background: #eadbbc;
+}
+.day-theme .progress {
+  background: #d7c39d;
+}
+.day-theme .progress > div {
+  background: #846433;
+}
+.day-theme .modal {
+  color: #29241d;
+  background: #fffaf0;
+  border-color: #c8b184;
+}
+.day-theme .modal p {
+  color: #655b4d;
+}
+
 @media (max-width: 950px) {
   .sidebar {
     width: 70px;
