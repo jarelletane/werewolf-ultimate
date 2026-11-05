@@ -134,8 +134,11 @@ const stopNarration = () => {
   restoreAmbience(run);
 };
 
-const say = (text: string) => {
-  if (!("speechSynthesis" in window)) return;
+const say = (text: string, onComplete?: () => void) => {
+  if (!("speechSynthesis" in window)) {
+    onComplete?.();
+    return;
+  }
   const audio = document.querySelector<HTMLAudioElement>("#ambience-audio");
   const run = ++narrationRun;
   resumeAmbienceAfterNarration = Boolean(audio && !audio.paused);
@@ -155,10 +158,16 @@ const say = (text: string) => {
     voices.find((voice) => voice.lang.startsWith("en")) ||
     null;
   utter.onend = () => {
-    if (activeUtterance === utter) restoreAmbience(run);
+    if (activeUtterance === utter) {
+      restoreAmbience(run);
+      onComplete?.();
+    }
   };
   utter.onerror = () => {
-    if (activeUtterance === utter) restoreAmbience(run);
+    if (activeUtterance === utter) {
+      restoreAmbience(run);
+      onComplete?.();
+    }
   };
   window.speechSynthesis.speak(utter);
 };
@@ -447,7 +456,7 @@ function App() {
   const [manualTarget, setManualTarget] = useState("");
   const [eliminatedRole, setEliminatedRole] = useState<RoleId | "">("");
   const [voteTarget, setVoteTarget] = useState("");
-  const [dawnCountdown, setDawnCountdown] = useState<number | null>(null);
+  const [dawnTransition, setDawnTransition] = useState(false);
   const previousPhase = useRef(g.phase);
   const players = alive(g),
     steps = nightSteps(g),
@@ -482,20 +491,6 @@ function App() {
   );
   const dawnInstruction =
     "Everyone, keep your eyes closed. The night is ending. Wait for the morning call before opening your eyes.";
-  useEffect(() => {
-    if (dawnCountdown === null) return;
-    if (dawnCountdown > 0) {
-      const timer = window.setTimeout(
-        () => setDawnCountdown((count) => (count === null ? null : count - 1)),
-        1000,
-      );
-      return () => window.clearTimeout(timer);
-    }
-    set(resolveNight(g));
-    setDawnCountdown(null);
-    setSelection("");
-    setSecondary("");
-  }, [dawnCountdown]);
   useEffect(() => {
     const prior = previousPhase.current;
     previousPhase.current = g.phase;
@@ -647,9 +642,15 @@ function App() {
     }
   }
   function beginDawnTransition() {
-    say(dawnInstruction);
+    setDawnTransition(true);
+    say(dawnInstruction, finishDawnTransition);
     setVoices(true);
-    setDawnCountdown(5);
+  }
+  function finishDawnTransition() {
+    set(resolveNight(g));
+    setDawnTransition(false);
+    setSelection("");
+    setSecondary("");
   }
   function resolveHunter() {
     if (!g.pendingHunter || !manualTarget) return;
@@ -1386,7 +1387,7 @@ function App() {
           </div>
         )}
       </main>
-      {dawnCountdown !== null && (
+      {dawnTransition && (
         <div className="modalback dawn-transition" role="dialog" aria-modal="true" aria-labelledby="dawn-title">
           <div className="modal">
             <Eye size={30} />
@@ -1395,8 +1396,19 @@ function App() {
             </div>
             <h2 id="dawn-title">Keep every player’s eyes closed</h2>
             <p>“{dawnInstruction}”</p>
-            <div className="dawn-count" aria-live="polite">{dawnCountdown}</div>
-            <small>The rooster and daytime screen will begin automatically.</small>
+            <div className="dawn-status" aria-live="polite">
+              <Volume2 size={18} /> Narration playing…
+            </div>
+            <small>Daytime will begin automatically when the narration finishes.</small>
+            <button
+              className="secondary dawn-fallback"
+              onClick={() => {
+                stopNarration();
+                finishDawnTransition();
+              }}
+            >
+              Narration not playing? Continue to dawn
+            </button>
           </div>
         </div>
       )}
