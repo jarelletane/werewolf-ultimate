@@ -183,6 +183,7 @@ const playNarrationClips = (
   clips: NarrationClip[],
   fallbackText: string,
   onComplete?: () => void,
+  duckedVolume = DUCKED_VOLUME,
 ) => {
   if (clips.length === 0) {
     say(fallbackText, onComplete);
@@ -195,7 +196,7 @@ const playNarrationClips = (
   activeUtterance = null;
   window.speechSynthesis?.cancel();
   resumeAmbienceAfterNarration = Boolean(background && !background.paused);
-  fadeAmbience(DUCKED_VOLUME, 60);
+  fadeAmbience(duckedVolume, duckedVolume === 0 ? 30 : 60);
 
   const playAt = (index: number) => {
     if (run !== narrationRun) return;
@@ -208,6 +209,7 @@ const playNarrationClips = (
     const recording = new Audio(clips[index].src);
     activeNarrationAudio = recording;
     recording.preload = "auto";
+    recording.volume = 1;
     recording.onended = () => playAt(index + 1);
     recording.onerror = () => {
       activeNarrationAudio = null;
@@ -407,6 +409,8 @@ function WelcomeScreen({
             playNarrationClips(
               [{ src: "/audio/narration/01-welcome.mp3", text: introduction }],
               introduction,
+              undefined,
+              0,
             )
           }
         >
