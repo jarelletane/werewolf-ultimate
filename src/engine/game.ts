@@ -67,6 +67,17 @@ export function checkWinner(g:Game):string|null{
  if(wolves>=village)return 'Werewolves';
  return null;
 }
+export function inferCardsOnlyWinner(g:Game):'Village'|'Werewolves'|null{
+ if(!g.cardsOnly||g.players.some(player=>!player.alive&&!player.revealedRole))return null;
+ const remaining=Object.entries(g.deckRoles).filter((entry):entry is [RoleId,number]=>typeof entry[1]==='number'&&entry[1]>0);
+ const roleTotal=remaining.reduce((sum,[,count])=>sum+count,0),living=alive(g).length;
+ if(roleTotal!==living)return null;
+ const wolves=remaining.reduce((sum,[role,count])=>sum+(roleOf(role).team==='wolf'?count:0),0);
+ const serialKillers=remaining.reduce((sum,[role,count])=>sum+(role==='serial'?count:0),0);
+ if(wolves===0&&serialKillers===0)return 'Village';
+ if(wolves>0&&wolves>=living-wolves)return 'Werewolves';
+ return null;
+}
 export function eliminate(g:Game,ids:string[],cause:string):Game{
  const dead=new Set(ids);let changed=true;
  while(changed){changed=false;if(g.lovers&&g.lovers.some(id=>dead.has(id))){for(const id of g.lovers)if(!dead.has(id)){dead.add(id);changed=true;}}}

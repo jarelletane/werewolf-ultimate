@@ -38,6 +38,7 @@ import {
   resolveNight,
   eliminate,
   checkWinner,
+  inferCardsOnlyWinner,
   Action,
 } from "./engine/game";
 import "./style.css";
@@ -502,6 +503,7 @@ function App() {
   const [setupView, setSetupView] = useState<"intro" | "guide" | "setup">("setup");
   const [confirmReset, setConfirmReset] = useState(false);
   const [showEndGame, setShowEndGame] = useState(false);
+  const [suggestedWinner, setSuggestedWinner] = useState<"Village" | "Werewolves" | null>(null);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
   const [names, setNames] = useState("");
   const [playerCount, setPlayerCount] = useState(12);
@@ -990,7 +992,7 @@ function App() {
       ? `${awaitingReveal.name}, the ${revealed.name}, has been eliminated.`
       : `${awaitingReveal.name} has been eliminated.`;
     const privateRecord = `${awaitingReveal.name} was the ${revealed.name}.`;
-    set({
+    const nextGame: Game = {
       ...g,
       players,
       deckRoles: { ...g.deckRoles, [eliminatedRole]: remainingRoleCount },
@@ -998,7 +1000,11 @@ function App() {
       pendingHunter: eliminatedRole === "hunter" ? awaitingReveal.id : g.pendingHunter,
       winner: jesterWon ? "Jester" : g.winner,
       phase: jesterWon ? "ended" : g.phase,
-    });
+    };
+    set(nextGame);
+    if (!jesterWon && !nextGame.pendingHunter) {
+      setSuggestedWinner(inferCardsOnlyWinner(nextGame));
+    }
     if (eliminatedRole === "hunter") {
       const hunterNarration =
         "Hunter, before you fall, choose one living player to take with you.";
@@ -1024,11 +1030,13 @@ function App() {
       narration,
     );
     setShowEndGame(false);
+    setSuggestedWinner(null);
   }
   function endWithoutWinner() {
     set({ ...g, winner: "No winner", phase: "ended", history: [...g.history, "The moderator ended the game"] });
     stopNarration();
     setShowEndGame(false);
+    setSuggestedWinner(null);
   }
   function finishDayElimination(target: string | null) {
     if (!target) {
@@ -1049,6 +1057,7 @@ function App() {
         saves={saves || []}
         onNew={() => {
           reset();
+          setSuggestedWinner(null);
           setNames("");
           setPlayerCount(12);
           setCounts({ werewolf: 2, seer: 1, doctor: 1, witch: 1, hunter: 1, villager: 6 });
@@ -1761,6 +1770,33 @@ function App() {
           </div>
         </div>
       )}
+      {suggestedWinner && (
+        <div className="modalback" role="dialog" aria-modal="true" aria-labelledby="winner-check-title">
+          <div className="modal inferred-winner">
+            <Trophy size={30} />
+            <div className="eyebrow">Victory condition reached</div>
+            <h2 id="winner-check-title">
+              {suggestedWinner === "Werewolves" ? "The Werewolves have reached parity" : "No Werewolves remain"}
+            </h2>
+            <p>
+              {suggestedWinner === "Werewolves"
+                ? `Based on the revealed cards, the remaining wolf-aligned cards now equal or outnumber the other ${players.length === 2 ? "player" : "players"}.`
+                : "Based on the revealed cards, every wolf-aligned card has been eliminated."}
+            </p>
+            <p className="muted">
+              Confirm the result to end the game and play the final narration. If a fallen role was entered incorrectly, keep the game open and correct the record manually.
+            </p>
+            <div className="end-game-options">
+              <button className="primary" onClick={() => declareWinner(suggestedWinner)}>
+                <Volume2 size={16} /> Confirm and play ending
+              </button>
+              <button className="secondary" onClick={() => setSuggestedWinner(null)}>
+                Keep game open
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showEndGame && (
         <div className="modalback">
           <div className="modal">
@@ -1796,6 +1832,7 @@ function App() {
                 className="primary"
                 onClick={() => {
                   reset();
+                  setSuggestedWinner(null);
                   setTab("game");
                   setSetupView("setup");
                   setConfirmReset(false);
