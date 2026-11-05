@@ -20,6 +20,10 @@ import {
   ArrowLeft,
   Trophy,
   Menu,
+  Trash2,
+  Home,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -37,15 +41,56 @@ import {
   Action,
 } from "./engine/game";
 import "./style.css";
-type Store = { game: Game; set: (g: Game) => void; reset: () => void };
+type SavedGame = { id: string; name: string; updatedAt: number; game: Game };
+type Store = {
+  game: Game;
+  saves: SavedGame[];
+  currentId: string | null;
+  set: (g: Game) => void;
+  createGame: (g: Game, name: string) => void;
+  loadGame: (id: string) => void;
+  deleteGame: (id: string) => void;
+  reset: () => void;
+};
 const useGame = create<Store>()(
   persist(
     (set) => ({
       game: initialGame(),
-      set: (game) => set({ game }),
-      reset: () => set({ game: initialGame() }),
+      saves: [],
+      currentId: null,
+      set: (game) =>
+        set((state) => ({
+          game,
+          saves: state.currentId
+            ? state.saves.map((save) =>
+                save.id === state.currentId
+                  ? { ...save, game, updatedAt: Date.now() }
+                  : save,
+              )
+            : state.saves,
+        })),
+      createGame: (game, name) =>
+        set((state) => {
+          const id = crypto.randomUUID();
+          return {
+            game,
+            currentId: id,
+            saves: [{ id, name, updatedAt: Date.now(), game }, ...state.saves],
+          };
+        }),
+      loadGame: (id) =>
+        set((state) => {
+          const save = state.saves.find((item) => item.id === id);
+          return save ? { game: save.game, currentId: id } : {};
+        }),
+      deleteGame: (id) =>
+        set((state) => ({
+          saves: state.saves.filter((save) => save.id !== id),
+          currentId: state.currentId === id ? null : state.currentId,
+        })),
+      reset: () => set({ game: initialGame(), currentId: null }),
     }),
-    { name: "werewolf-ultimate-v1" },
+    { name: "werewolf-ultimate-v2" },
   ),
 );
 
@@ -179,9 +224,10 @@ function Timer({ seconds, label }: { seconds: number; label: string }) {
   );
 }
 
-function AmbienceControl() {
+function AmbienceControl({ phase }: { phase: Game["phase"] }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
+  const source = phase === "night" ? "/audio/night-ambience.mp3" : "/audio/horror-ambience.mp3";
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -189,6 +235,16 @@ function AmbienceControl() {
     audio.volume = AMBIENCE_VOLUME;
     return () => audio.pause();
   }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || audio.getAttribute("src") === source) return;
+    const shouldContinue = !audio.paused || phase === "night";
+    audio.src = source;
+    audio.load();
+    audio.volume = AMBIENCE_VOLUME;
+    if (shouldContinue) void audio.play().catch(() => setPlaying(false));
+  }, [source, phase]);
 
   async function toggle() {
     const audio = audioRef.current;
@@ -211,7 +267,7 @@ function AmbienceControl() {
       <audio
         id="ambience-audio"
         ref={audioRef}
-        src="/audio/horror-ambience.mp3"
+        src={source}
         preload="none"
         loop
         onPause={() => setPlaying(false)}
@@ -315,8 +371,57 @@ function WelcomeScreen({
   );
 }
 
+function HomeScreen({
+  saves,
+  onNew,
+  onContinue,
+  onDelete,
+}: {
+  saves: SavedGame[];
+  onNew: () => void;
+  onContinue: (save: SavedGame) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <main className="home-page">
+      <section className="home-hero">
+        <div className="home-crest"><Moon size={30} /></div>
+        <div className="eyebrow">THE MODERATOR'S DESK</div>
+        <h1>Welcome to Werewolf</h1>
+        <p>Guide your village through suspicion, darkness, and the hunt.</p>
+        <button className="primary home-new" onClick={onNew}>
+          Create new game <ChevronRight size={18} />
+        </button>
+      </section>
+      <section className="saved-games">
+        <div className="saved-heading">
+          <div><span className="eyebrow">YOUR CHRONICLES</span><h2>Continue a game</h2></div>
+          <span className="pill">{saves.length} saved</span>
+        </div>
+        {saves.length === 0 ? (
+          <div className="empty-saves"><BookOpen size={28} /><p>No saved games yet.</p><small>Create a game and it will autosave here.</small></div>
+        ) : (
+          <div className="save-list">
+            {saves.map((save) => (
+              <article className="save-card" key={save.id}>
+                <button className="save-main" onClick={() => onContinue(save)}>
+                  <span className="save-icon"><Moon size={18} /></span>
+                  <span><strong>{save.name}</strong><small>{save.game.phase === "setup" ? "Ready to begin" : `Round ${save.game.round} · ${save.game.phase}`} · {alive(save.game).length} alive</small></span>
+                  <ChevronRight size={18} />
+                </button>
+                <button className="delete-save" aria-label={`Delete ${save.name}`} onClick={() => onDelete(save.id)}><Trash2 size={16} /></button>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+
 function App() {
-  const { game: g, set, reset } = useGame();
+  const { game: g, saves, set, createGame, loadGame, deleteGame, reset } = useGame();
+  const [screen, setScreen] = useState<"home" | "create" | "intro" | "game">("home");
   const [tab, setTab] = useState<"game" | "players" | "log">("game");
   const [voices, setVoices] = useState(false);
   const [setupView, setSetupView] = useState<"intro" | "guide" | "setup">("setup");
@@ -324,6 +429,7 @@ function App() {
   const [showEndGame, setShowEndGame] = useState(false);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
   const [names, setNames] = useState(defaultNames.join("\n"));
+  const [counts, setCounts] = useState<Partial<Record<RoleId, number>>>({ werewolf: 2, seer: 1, doctor: 1, witch: 1, hunter: 1, villager: 6 });
   const [setupError, setSetupError] = useState("");
   const [selection, setSelection] = useState("");
   const [secondary, setSecondary] = useState("");
@@ -331,10 +437,12 @@ function App() {
   const [manualTarget, setManualTarget] = useState("");
   const [eliminatedRole, setEliminatedRole] = useState<RoleId | "">("");
   const [voteTarget, setVoteTarget] = useState("");
+  const [discussionStarted, setDiscussionStarted] = useState(false);
   const players = alive(g),
     steps = nightSteps(g),
     current = steps[g.step],
     actor = current?.actors[0],
+    cardTotal = Object.values(counts).reduce((sum, count) => sum + (count || 0), 0),
     people = names
       .split("\n")
       .map((n) => n.trim())
@@ -348,7 +456,9 @@ function App() {
           ? `${g.step === 0 ? (g.round === 1 ? "Night one begins. Everyone, close your eyes. " : `Night ${g.round} begins. Everyone, close your eyes. `) : ""}${current.prompt}`
           : "The night is over. Keep your eyes closed. The first light of dawn breaks over the village. Everyone, open your eyes.")
       : g.phase === "day"
-        ? g.nightResult.length
+        ? g.round === 1
+          ? "The village awakens peacefully, unaware of the danger lurking among its people. Introduce yourselves, then decide who can be trusted."
+          : g.nightResult.length
           ? `Morning has come. The village awakens to tragedy. ${g.nightResult.join(" and ")} did not survive the night.`
           : "The sun rises. Against all odds, every villager has survived the night."
         : g.phase === "vote"
@@ -359,6 +469,11 @@ function App() {
   function update(patch: Partial<Game>) {
     set({ ...g, ...patch });
   }
+  function changePlayerCount(count: number) {
+    const currentNames = names.split("\n").map((name) => name.trim());
+    const next = Array.from({ length: count }, (_, index) => currentNames[index] || defaultNames[index] || `Player ${index + 1}`);
+    setNames(next.join("\n"));
+  }
   function continueSetup() {
     if (people.length < 5) {
       setSetupError("Add at least five players.");
@@ -368,10 +483,15 @@ function App() {
       setSetupError("Player names must be unique.");
       return;
     }
-    const narratedRoles = Object.fromEntries(
-      ROLES.filter((role) => role.night).map((role) => [role.id, 1]),
-    ) as Partial<Record<RoleId, number>>;
-    set({
+    if (cardTotal !== people.length) {
+      setSetupError(`Choose exactly ${people.length} physical cards (currently ${cardTotal}).`);
+      return;
+    }
+    if (!Object.entries(counts).some(([role, count]) => count && roleOf(role as RoleId).team === "wolf")) {
+      setSetupError("Include at least one Werewolf card.");
+      return;
+    }
+    const game: Game = {
       ...initialGame(),
       players: people.map((name) => ({
         id: crypto.randomUUID(),
@@ -380,15 +500,20 @@ function App() {
       })),
       phase: "setup",
       cardsOnly: true,
-      deckRoles: narratedRoles,
+      deckRoles: counts,
       settings: g.settings,
-    });
+    };
+    createGame(game, `Village of ${people[0]}${people.length > 1 ? ` + ${people.length - 1}` : ""}`);
     setSetupError("");
     setSetupView("intro");
+    setScreen("intro");
   }
   function startGame() {
     set({ ...g, phase: "night", round: 1, step: 0, actions: [], votes: {}, history: [] });
     setTab("game");
+    setScreen("game");
+    const ambience = document.querySelector<HTMLAudioElement>("#ambience-audio");
+    if (ambience?.paused) void ambience.play().catch(() => undefined);
   }
   function record() {
     if (!current || !actor) return;
@@ -446,6 +571,7 @@ function App() {
   function revealElimination() {
     if (!awaitingReveal || !eliminatedRole) return;
     const revealed = roleOf(eliminatedRole);
+    const remainingRoleCount = Math.max(0, (g.deckRoles[eliminatedRole] || 0) - 1);
     const wasDayVote = g.history.at(-1)?.includes(" vote") ?? false;
     const jesterWon = eliminatedRole === "jester" && wasDayVote;
     const players = g.players.map((player) =>
@@ -460,7 +586,7 @@ function App() {
     set({
       ...g,
       players,
-      deckRoles: g.deckRoles,
+      deckRoles: { ...g.deckRoles, [eliminatedRole]: remainingRoleCount },
       history: [...g.history, g.settings.revealRoles ? publicAnnouncement : privateRecord],
       pendingHunter: eliminatedRole === "hunter" ? awaitingReveal.id : g.pendingHunter,
       winner: jesterWon ? "Jester" : g.winner,
@@ -496,6 +622,26 @@ function App() {
     ? g.actions.filter((a) => current.actors.some((p) => p.id === a.actor))
     : [];
   const hasAction = currentActions.length > 0;
+  if (screen === "home") {
+    return (
+      <HomeScreen
+        saves={saves || []}
+        onNew={() => {
+          reset();
+          setSetupView("setup");
+          setScreen("create");
+        }}
+        onContinue={(save) => {
+          loadGame(save.id);
+          setSetupView(save.game.phase === "setup" ? "intro" : "setup");
+          setScreen(save.game.phase === "setup" ? "intro" : "game");
+        }}
+        onDelete={(id) => {
+          if (window.confirm("Remove this saved game?")) deleteGame(id);
+        }}
+      />
+    );
+  }
   return (
     <div className="app">
       <aside className="sidebar">
@@ -561,7 +707,7 @@ function App() {
             </p>
           </div>
           <div className="header-actions">
-            <AmbienceControl />
+            <AmbienceControl phase={g.phase} />
             <div className="phasebadge">
               {g.phase === "night" ? (
                 <Moon size={16} />
@@ -586,6 +732,9 @@ function App() {
               {gameMenuOpen && (
                 <div className="game-menu-popover">
                   <strong>Game menu</strong>
+                  <button onClick={() => { setGameMenuOpen(false); setScreen("home"); }}>
+                    <Home size={15} /> Home and saved games
+                  </button>
                   {g.phase !== "setup" && g.phase !== "ended" && (
                     <button onClick={() => { setGameMenuOpen(false); setShowEndGame(true); }}>
                       <Skull size={15} /> End current game
@@ -618,12 +767,38 @@ function App() {
                 Enter one name per line. These are sample names—replace them
                 with your group.
               </p>
+              <label className="player-count-label">
+                Number of players
+                <select value={people.length} onChange={(event) => changePlayerCount(Number(event.target.value))}>
+                  {Array.from({ length: 16 }, (_, index) => index + 5).map((count) => <option key={count} value={count}>{count} players</option>)}
+                </select>
+              </label>
               <textarea
                 value={names}
                 onChange={(e) => setNames(e.target.value)}
                 rows={14}
                 spellCheck={false}
               />
+            </section>
+            <section className="panel">
+              <div className="panelhead">
+                <Shield size={18} />
+                <h2>Physical cards used</h2>
+                <span className="pill">{cardTotal} / {people.length}</span>
+              </div>
+              <p className="muted">Choose the cards being dealt. The app uses this only to build the correct narration order—it never assigns a card to a player.</p>
+              <div className="rolelist">
+                {ROLES.map((role) => (
+                  <div className="roleline" key={role.id}>
+                    <div><strong>{role.name}</strong><small>{role.description}</small></div>
+                    <div className="counter">
+                      <button aria-label={`Remove ${role.name}`} onClick={() => setCounts({ ...counts, [role.id]: Math.max(0, (counts[role.id] || 0) - 1) })}><Minus size={13} /></button>
+                      <span>{counts[role.id] || 0}</span>
+                      <button aria-label={`Add ${role.name}`} disabled={!!role.unique && !!counts[role.id]} onClick={() => setCounts({ ...counts, [role.id]: (counts[role.id] || 0) + 1 })}><Plus size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </section>
             <section className="panel settings">
               <div className="panelhead">
@@ -774,7 +949,7 @@ function App() {
                     onChange={(event) => setEliminatedRole(event.target.value as RoleId | "")}
                   >
                     <option value="">Choose the revealed role…</option>
-                    {ROLES.map((role) => (
+                    {ROLES.filter((role) => (g.deckRoles[role.id] || 0) > 0).map((role) => (
                       <option key={role.id} value={role.id}>{role.name}</option>
                     ))}
                   </select>
@@ -958,13 +1133,9 @@ function App() {
                 <section className="panel">
                   <div className="panelhead">
                     <Sun size={18} />
-                    <h2>Day discussion</h2>
+                    <h2>{g.round === 1 ? "First day introductions" : `Day ${g.round} discussion`}</h2>
                   </div>
-                  <p className="muted">
-                    {g.nightResult.length
-                      ? `Lost last night: ${g.nightResult.join(", ")}`
-                      : "No one died last night."}
-                  </p>
+                  <p className="muted">{g.round === 1 ? "Invite each player to introduce themselves. When everyone is ready, begin the timed discussion." : g.nightResult.length ? `Lost last night: ${g.nightResult.join(", ")}` : "No one died last night."}</p>
                   {g.silenced.length > 0 && (
                     <p className="muted">
                       Silenced:{" "}
@@ -973,12 +1144,11 @@ function App() {
                         .join(", ")}
                     </p>
                   )}
-                  <button
-                    className="primary big"
-                    onClick={() => update({ phase: "vote", votes: {} })}
-                  >
-                    Begin the vote <Vote size={18} />
-                  </button>
+                  {!discussionStarted ? (
+                    <button className="primary big" onClick={() => setDiscussionStarted(true)}>Start discussion <Users size={18} /></button>
+                  ) : (
+                    <button className="primary big" onClick={() => { update({ phase: "vote", votes: {} }); setDiscussionStarted(false); }}>Record round elimination <Vote size={18} /></button>
+                  )}
                 </section>
               )}
               {g.phase === "vote" && !g.pendingHunter && !awaitingReveal && (

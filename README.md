@@ -1,6 +1,6 @@
 # Werewolf Ultimate — Moderator's Desk
 
-A local-first, mobile-friendly React + TypeScript moderator dashboard for games played with physical role cards. It includes dramatic speech narration, night-action resolution, timers, voting, a player roster, autosave, and moderator-confirmed victory.
+A local-first, mobile-friendly React + TypeScript moderator dashboard for games played with physical role cards. It includes multiple autosaved games, dramatic speech narration, phase-aware ambience, night-action resolution, timers, a player roster, and moderator-confirmed victory.
 
 The header includes optional looping horror ambience. Browsers require the moderator to tap the ambience control before audio can begin; narration remains independently controlled from the game panel.
 
@@ -17,7 +17,7 @@ Open the Vite URL printed in your terminal. For a production build run `npm run 
 
 ## Game flow
 
-1. Deal your physical role cards, enter the player names, configure the timers, and press Continue. The app never assigns roles, asks for the deck composition, or records which player holds a role.
+1. Choose the player count, enter player names, select the physical cards being used, configure timers, and press Continue. The app uses the card list only to build the moderator sequence; it never assigns cards to players.
 2. Once everyone is ready and seated, play the opening introduction and press Start Game. Keep the moderator dashboard private while recording night actions; living players' roles are never entered or displayed.
    Night One is for wolf-pack recognition and role setup only; the wolves do not select or eliminate a victim until Night Two.
 3. During Night One, introduce the Wolves, play the Seer narration immediately afterward when a Seer is present, link the Lovers if Cupid is present, and introduce the Doctor and Witch without using their abilities. No player can die. From Night Two onward, record each active role's target and skip roles not present or already eliminated.
@@ -30,7 +30,7 @@ Open the Vite URL printed in your terminal. For a production build run `npm run 
 
 This is a **playable MVP with an original, simplified Ultimate-style ruleset**, not an official licensed implementation of any published Ultimate Werewolf edition. Role descriptions in the setup UI define this app's house rules. Alpha Wolf is a standard pack wolf; Priest is a regular villager; Apprentice Seer inherits investigations after Seer's death. The Witch can manually choose a healing target (no automatic revelation of the wolf target), with one use per potion. The first-night Cupid can link two lovers. A Hunter elimination pauses the game for a retaliation choice. Silencer is wolf-aligned but cannot vote in the wolf kill action unless another pack wolf is present. Serial Killer prevents standard faction victory while alive. Neutral role victory conditions are simplified.
 
-This version is single-device and moderator-only. There is no networked role distribution, player voting, authentication, or audio file playback. Narration uses the browser's built-in SpeechSynthesis voices and availability varies by browser. Timers run in the current tab and do not auto-advance actions. The app saves state in localStorage but is not yet an installable/offline-cached PWA.
+This version is single-device and moderator-only. There is no networked role distribution, player voting, or authentication. Narration uses the browser's built-in SpeechSynthesis voices and availability varies by browser. Timers run in the current tab and do not auto-advance actions. Saved games and progress are stored in localStorage, but the app is not yet an installable/offline-cached PWA.
 
 ## Structure
 
