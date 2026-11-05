@@ -75,6 +75,7 @@ export function inferCardsOnlyWinner(g:Game):'Village'|'Werewolves'|'Serial Kill
  const wolves=remaining.reduce((sum,[role,count])=>sum+(roleOf(role).team==='wolf'?count:0),0);
  const serialKillers=remaining.reduce((sum,[role,count])=>sum+(role==='serial'?count:0),0);
  if(living===1&&serialKillers===1)return 'Serial Killer';
+ if(serialKillers>0)return null;
  if(wolves===0&&serialKillers===0)return 'Village';
  if(wolves>0&&wolves>=living-wolves)return 'Werewolves';
  return null;

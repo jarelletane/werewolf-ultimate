@@ -97,6 +97,8 @@ const useGame = create<Store>()(
 
 const AMBIENCE_VOLUME = 0.18;
 const DUCKED_VOLUME = 0.0015;
+const CRITICAL_NIGHT_NARRATION =
+  "Three souls remain, and a Werewolf still walks among you. If the village enters the night and the hunt succeeds, the Werewolf may seize control. This may be your final chance.";
 let ambienceFade: number | undefined;
 let activeUtterance: SpeechSynthesisUtterance | null = null;
 let activeNarrationAudio: HTMLAudioElement | null = null;
@@ -826,6 +828,14 @@ function App() {
     playNarrationClips(narrationClips, narration);
     setVoices(true);
   }, [g.phase, g.round, g.step, awaitingReveal?.id]);
+  useEffect(() => {
+    if (!pendingCriticalNight) return;
+    playNarrationClips(
+      [{ src: "/audio/narration/77-final-chance.mp3", text: CRITICAL_NIGHT_NARRATION }],
+      CRITICAL_NIGHT_NARRATION,
+    );
+    setVoices(true);
+  }, [pendingCriticalNight]);
   function update(patch: Partial<Game>) {
     set({ ...g, ...patch });
   }
@@ -839,7 +849,11 @@ function App() {
       (sum, [role, count]) => sum + (roleOf(role).team === "wolf" ? count : 0),
       0,
     );
-    return game.cardsOnly && living === 3 && remainingCards === living && remainingWolves === 1;
+    const remainingSerialKillers = remaining.reduce(
+      (sum, [role, count]) => sum + (role === "serial" ? count : 0),
+      0,
+    );
+    return game.cardsOnly && living === 3 && remainingCards === living && remainingWolves === 1 && remainingSerialKillers === 0;
   }
   function changePlayerCount(count: number) {
     const currentNames = names
@@ -1983,12 +1997,23 @@ function App() {
               <BookOpen size={14} /> Script — read aloud
             </div>
             <p>
-              “Three souls remain, and a Werewolf still walks among you. If the village enters the night and the hunt succeeds, the Werewolf may seize control. This may be your final chance.”
+              “{CRITICAL_NIGHT_NARRATION}”
             </p>
             <p className="muted">
               A successful protection or healing action may still prevent the kill. This warning does not declare a winner.
             </p>
             <div className="end-game-options">
+              <button
+                className="secondary"
+                onClick={() =>
+                  playNarrationClips(
+                    [{ src: "/audio/narration/77-final-chance.mp3", text: CRITICAL_NIGHT_NARRATION }],
+                    CRITICAL_NIGHT_NARRATION,
+                  )
+                }
+              >
+                <Volume2 size={16} /> Replay warning
+              </button>
               <button
                 className="primary"
                 onClick={() => {
@@ -1999,7 +2024,7 @@ function App() {
                 Continue into Night <Moon size={16} />
               </button>
             </div>
-            <small>Recorded narration coming soon.</small>
+            <small>The warning narration plays automatically.</small>
           </div>
         </div>
       )}
