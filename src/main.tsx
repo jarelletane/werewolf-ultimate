@@ -273,6 +273,7 @@ function AmbienceControl({ phase }: { phase: Game["phase"] }) {
         onPause={() => setPlaying(false)}
         onPlay={() => setPlaying(true)}
       />
+      <audio id="morning-rooster" src="/audio/rooster.mp3" preload="auto" />
       <button
         className={playing ? "ambience-button active" : "ambience-button"}
         onClick={toggle}
@@ -438,6 +439,7 @@ function App() {
   const [eliminatedRole, setEliminatedRole] = useState<RoleId | "">("");
   const [voteTarget, setVoteTarget] = useState("");
   const [discussionStarted, setDiscussionStarted] = useState(false);
+  const previousPhase = useRef(g.phase);
   const players = alive(g),
     steps = nightSteps(g),
     current = steps[g.step],
@@ -466,6 +468,24 @@ function App() {
           : g.phase === "ended"
             ? `The final bell tolls. ${g.winner} have won the game.`
             : "A darkness gathers over the village.";
+  useEffect(() => {
+    const prior = previousPhase.current;
+    previousPhase.current = g.phase;
+    if (prior !== "night" || g.phase !== "day") return;
+    const rooster = document.querySelector<HTMLAudioElement>("#morning-rooster");
+    const ambience = document.querySelector<HTMLAudioElement>("#ambience-audio");
+    if (!rooster) return;
+    const restoreBackground = Boolean(ambience && !ambience.paused);
+    if (restoreBackground) fadeAmbience(0.035);
+    rooster.currentTime = 0;
+    rooster.volume = 0.82;
+    const restore = () => {
+      if (restoreBackground) fadeAmbience(AMBIENCE_VOLUME);
+    };
+    rooster.onended = restore;
+    rooster.onerror = restore;
+    void rooster.play().catch(restore);
+  }, [g.phase]);
   function update(patch: Partial<Game>) {
     set({ ...g, ...patch });
   }

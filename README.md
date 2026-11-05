@@ -2,7 +2,7 @@
 
 A local-first, mobile-friendly React + TypeScript moderator dashboard for games played with physical role cards. It includes multiple autosaved games, dramatic speech narration, phase-aware ambience, night-action resolution, timers, a player roster, and moderator-confirmed victory.
 
-The header includes optional looping horror ambience. Browsers require the moderator to tap the ambience control before audio can begin; narration remains independently controlled from the game panel.
+The header includes optional looping ambience. Starting the game switches automatically to the dedicated Night track. Each Night-to-Day transition plays a one-shot rooster cue while the background briefly ducks, then restores normal volume. Browsers may require the moderator's initial Start Game tap before audio can begin.
 
 The opening screen includes an optional narrated introduction, a narrated game-flow guide, and individually playable role objectives. Visible captions accompany every explanation, and ambience automatically ducks while speech is playing.
 
