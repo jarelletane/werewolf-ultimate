@@ -279,7 +279,7 @@ function AmbienceControl({ phase, paused = false }: { phase: Game["phase"]; paus
     phase === "night"
       ? "/audio/night-ambience.mp3"
       : phase === "day" || phase === "vote"
-        ? "/audio/day-ambience.mp3"
+        ? "/audio/day-ambience.mp3?v=forest-30746"
         : "/audio/horror-ambience.mp3";
 
   useEffect(() => {
