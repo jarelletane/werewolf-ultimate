@@ -521,6 +521,7 @@ function App() {
   const [selection, setSelection] = useState("");
   const [secondary, setSecondary] = useState("");
   const [witchMode, setWitchMode] = useState<"heal" | "poison">("heal");
+  const [witchInstructionReady, setWitchInstructionReady] = useState(false);
   const [manualTarget, setManualTarget] = useState("");
   const [eliminatedRole, setEliminatedRole] = useState<RoleId | "">("");
   const [voteTarget, setVoteTarget] = useState("");
@@ -550,7 +551,15 @@ function App() {
                   ? g.round === 1
                     ? "Seer, open your eyes. Point to one player whose allegiance you wish to discover."
                     : "Seer, awaken. Point to one player whose allegiance you wish to discover."
-                  : current.prompt
+                  : current.key === "doctor-intro"
+                    ? "Doctor, open your eyes so the moderator may identify you."
+                    : current.key === "witch-intro"
+                      ? "Witch, open your eyes so the moderator may identify you."
+                      : current.key === "doctor"
+                        ? "Doctor, awaken. Choose one player to protect tonight."
+                        : current.key === "witch"
+                          ? "Witch, awaken. The moderator will now reveal whether someone was attacked."
+                          : current.prompt
             }`
           : "The night is over. Keep your eyes closed. The first light of dawn breaks over the village. Everyone, open your eyes.")
       : g.phase === "day"
@@ -597,6 +606,26 @@ function App() {
               ? "Seer, open your eyes. Point to one player whose allegiance you wish to discover."
               : "Seer, awaken. Point to one player whose allegiance you wish to discover.",
         });
+      } else if (current.key === "doctor-intro") {
+        clips.push({
+          src: "/audio/narration/30-doctor-recognition.mp3",
+          text: "Doctor, open your eyes so the moderator may identify you.",
+        });
+      } else if (current.key === "witch-intro") {
+        clips.push({
+          src: "/audio/narration/32-witch-recognition.mp3",
+          text: "Witch, open your eyes so the moderator may identify you.",
+        });
+      } else if (current.key === "doctor") {
+        clips.push({
+          src: "/audio/narration/43-doctor-protect.mp3",
+          text: "Doctor, awaken. Choose one player to protect tonight.",
+        });
+      } else if (current.key === "witch") {
+        clips.push({
+          src: "/audio/narration/45-witch-awaken.mp3",
+          text: "Witch, awaken. The moderator will now reveal whether someone was attacked.",
+        });
       }
       return clips;
     }
@@ -625,7 +654,27 @@ function App() {
             src: "/audio/narration/23-seer-close.mp3",
             text: "Seer, close your eyes.",
           }
-        : null;
+        : g.phase === "night" && current?.key === "doctor-intro"
+          ? {
+              src: "/audio/narration/31-doctor-close-first-night.mp3",
+              text: "Doctor, close your eyes. You do not protect anyone on the first night.",
+            }
+          : g.phase === "night" && current?.key === "witch-intro"
+            ? {
+                src: "/audio/narration/33-witch-close-first-night.mp3",
+                text: "Witch, close your eyes. Your potions are not used on the first night.",
+              }
+            : g.phase === "night" && current?.key === "doctor"
+              ? {
+                  src: "/audio/narration/44-doctor-close.mp3",
+                  text: "Doctor, close your eyes.",
+                }
+              : g.phase === "night" && current?.key === "witch"
+                ? {
+                    src: "/audio/narration/47-witch-close.mp3",
+                    text: "Witch, close your eyes.",
+                  }
+                : null;
   useEffect(() => {
     const prior = previousPhase.current;
     previousPhase.current = g.phase;
@@ -780,6 +829,7 @@ function App() {
         setSelection("");
         setSecondary("");
         setWitchMode("heal");
+        setWitchInstructionReady(false);
       } else {
         beginDawnTransition();
       }
@@ -851,6 +901,14 @@ function App() {
       winner: jesterWon ? "Jester" : g.winner,
       phase: jesterWon ? "ended" : g.phase,
     });
+    if (eliminatedRole === "hunter") {
+      const hunterNarration =
+        "Hunter, before you fall, choose one living player to take with you.";
+      playNarrationClips(
+        [{ src: "/audio/narration/55-hunter-final-shot.mp3", text: hunterNarration }],
+        hunterNarration,
+      );
+    }
     setEliminatedRole("");
   }
   function declareWinner(winner: "Village" | "Werewolves") {
@@ -1291,7 +1349,32 @@ function App() {
                           ? "No app entry is needed for this step. Follow the narration, handle any private response, then continue."
                           : "Select the player indicated by the active role. The moderator records the action privately."}
                       </p>
-                      {current.key === "witch" && (
+                      {current.key === "witch" && !witchInstructionReady && (
+                        <div className="role-instruction">
+                          <div className="script-label">
+                            <BookOpen size={14} /> Next script
+                          </div>
+                          <p>“You may use one potion, or save your potions for another night. Indicate your choice now.”</p>
+                          <button
+                            className="primary"
+                            onClick={() =>
+                              playNarrationClips(
+                                [
+                                  {
+                                    src: "/audio/narration/46-witch-action.mp3",
+                                    text: "You may use one potion, or save your potions for another night. Indicate your choice now.",
+                                  },
+                                ],
+                                "You may use one potion, or save your potions for another night. Indicate your choice now.",
+                                () => setWitchInstructionReady(true),
+                              )
+                            }
+                          >
+                            <Volume2 size={16} /> Continue Witch narration
+                          </button>
+                        </div>
+                      )}
+                      {current.key === "witch" && witchInstructionReady && (
                         <div className="switch">
                           <button
                             className={witchMode === "heal" ? "selected" : ""}
@@ -1315,13 +1398,13 @@ function App() {
                           </button>
                         </div>
                       )}
-                      {current.key === "witch" && (
+                      {current.key === "witch" && witchInstructionReady && (
                         <p className="muted">
                           House rule: the moderator selects the heal target
                           manually; potion use is optional.
                         </p>
                       )}
-                      {current.ability !== "none" && <div className="targets">
+                      {current.ability !== "none" && (current.key !== "witch" || witchInstructionReady) && <div className="targets">
                         {players
                           .filter(
                             (p) =>
@@ -1374,7 +1457,7 @@ function App() {
                         </div>
                       )}
                       <div className="actionrow">
-                        {current.ability !== "none" && <button
+                        {current.ability !== "none" && (current.key !== "witch" || witchInstructionReady) && <button
                           className="secondary"
                           onClick={record}
                           disabled={
@@ -1388,7 +1471,7 @@ function App() {
                         >
                           <Check size={16} /> {current.ability === "kill" ? "Record elimination target" : current.ability === "inspect" ? "Record pointed player" : "Record action"}
                         </button>}
-                        <button className="primary" onClick={advance}>
+                        <button className="primary" onClick={advance} disabled={current.key === "witch" && !witchInstructionReady}>
                           {g.step === steps.length - 1
                             ? "Resolve night"
                             : "Next role"}{" "}

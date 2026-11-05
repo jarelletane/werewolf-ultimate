@@ -636,6 +636,21 @@ select:focus {
   display: flex;
   gap: 8px;
 }
+.role-instruction {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid #55496b;
+  border-radius: 12px;
+  background: #211d2d;
+}
+.role-instruction .script-label {
+  margin-top: 0;
+}
+.role-instruction p {
+  margin: 14px 0;
+  color: #d8cfdf;
+  font: italic 14px/1.6 Georgia, serif;
+}
 .switch button {
   font-size: 12px;
   border: 1px solid #394159;
@@ -1066,6 +1081,13 @@ select:focus {
 .day-theme .targets button,
 .day-theme .switch button {
   border-color: #bca67b;
+}
+.day-theme .role-instruction {
+  background: #f5e8ce;
+  border-color: #b99b64;
+}
+.day-theme .role-instruction p {
+  color: #4f4639;
 }
 .day-theme .targets button.selected,
 .day-theme .switch button.selected {
