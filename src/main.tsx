@@ -430,6 +430,7 @@ function App() {
   const [showEndGame, setShowEndGame] = useState(false);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
   const [names, setNames] = useState(defaultNames.join("\n"));
+  const [playerCount, setPlayerCount] = useState(defaultNames.length);
   const [counts, setCounts] = useState<Partial<Record<RoleId, number>>>({ werewolf: 2, seer: 1, doctor: 1, witch: 1, hunter: 1, villager: 6 });
   const [setupError, setSetupError] = useState("");
   const [selection, setSelection] = useState("");
@@ -493,18 +494,66 @@ function App() {
     const currentNames = names.split("\n").map((name) => name.trim());
     const next = Array.from({ length: count }, (_, index) => currentNames[index] || defaultNames[index] || `Player ${index + 1}`);
     setNames(next.join("\n"));
+    setPlayerCount(count);
+    setCounts((current) => {
+      const nextCounts = { ...current };
+      let total = Object.values(nextCounts).reduce((sum, value) => sum + (value || 0), 0);
+      while (total > count && (nextCounts.villager || 0) > 0) {
+        nextCounts.villager = (nextCounts.villager || 0) - 1;
+        total -= 1;
+      }
+      const removable: RoleId[] = ["hunter", "priest", "tough", "bodyguard", "detective", "apprentice", "cupid", "witch", "doctor", "seer", "serial", "jester", "silencer", "alpha"];
+      for (const role of removable) {
+        while (total > count && (nextCounts[role] || 0) > 0) {
+          nextCounts[role] = (nextCounts[role] || 0) - 1;
+          total -= 1;
+        }
+      }
+      while (total > count && (nextCounts.werewolf || 0) > 1) {
+        nextCounts.werewolf = (nextCounts.werewolf || 0) - 1;
+        total -= 1;
+      }
+      if (total < count) nextCounts.villager = (nextCounts.villager || 0) + (count - total);
+      return nextCounts;
+    });
+  }
+  function changeRoleCount(role: RoleId, delta: 1 | -1) {
+    setCounts((current) => {
+      const next = { ...current };
+      const currentValue = next[role] || 0;
+      if (delta === -1) {
+        if (currentValue === 0 || role === "villager") return current;
+        next[role] = currentValue - 1;
+        next.villager = (next.villager || 0) + 1;
+        return next;
+      }
+      if (roleOf(role).unique && currentValue > 0) return current;
+      if ((next.villager || 0) > 0 && role !== "villager") {
+        next.villager = (next.villager || 0) - 1;
+        next[role] = currentValue + 1;
+        return next;
+      }
+      const total = Object.values(next).reduce((sum, value) => sum + (value || 0), 0);
+      if (total >= playerCount) return current;
+      next[role] = currentValue + 1;
+      return next;
+    });
   }
   function continueSetup() {
     if (people.length < 5) {
       setSetupError("Add at least five players.");
       return;
     }
+    if (people.length !== playerCount) {
+      setSetupError(`Enter a name for all ${playerCount} players. The moderator is not included.`);
+      return;
+    }
     if (new Set(people.map((p) => p.toLowerCase())).size !== people.length) {
       setSetupError("Player names must be unique.");
       return;
     }
-    if (cardTotal !== people.length) {
-      setSetupError(`Choose exactly ${people.length} physical cards (currently ${cardTotal}).`);
+    if (cardTotal !== playerCount) {
+      setSetupError(`Choose exactly ${playerCount} physical cards (currently ${cardTotal}).`);
       return;
     }
     if (!Object.entries(counts).some(([role, count]) => count && roleOf(role as RoleId).team === "wolf")) {
@@ -648,6 +697,9 @@ function App() {
         saves={saves || []}
         onNew={() => {
           reset();
+          setNames(defaultNames.join("\n"));
+          setPlayerCount(defaultNames.length);
+          setCounts({ werewolf: 2, seer: 1, doctor: 1, witch: 1, hunter: 1, villager: 6 });
           setSetupView("setup");
           setScreen("create");
         }}
@@ -781,15 +833,15 @@ function App() {
               <div className="panelhead">
                 <Users size={18} />
                 <h2>Players</h2>
-                <span className="pill">{people.length}</span>
+                <span className="pill">{playerCount}</span>
               </div>
               <p className="muted">
                 Enter one name per line. These are sample names—replace them
                 with your group.
               </p>
               <label className="player-count-label">
-                Number of players
-                <select value={people.length} onChange={(event) => changePlayerCount(Number(event.target.value))}>
+                Number of players <small>(not including the moderator)</small>
+                <select value={playerCount} onChange={(event) => changePlayerCount(Number(event.target.value))}>
                   {Array.from({ length: 16 }, (_, index) => index + 5).map((count) => <option key={count} value={count}>{count} players</option>)}
                 </select>
               </label>
@@ -804,7 +856,7 @@ function App() {
               <div className="panelhead">
                 <Shield size={18} />
                 <h2>Physical cards used</h2>
-                <span className="pill">{cardTotal} / {people.length}</span>
+                <span className="pill">{cardTotal} / {playerCount}</span>
               </div>
               <p className="muted">Choose the cards being dealt. The app uses this only to build the correct narration order—it never assigns a card to a player.</p>
               <div className="rolelist">
@@ -812,9 +864,9 @@ function App() {
                   <div className="roleline" key={role.id}>
                     <div><strong>{role.name}</strong><small>{role.description}</small></div>
                     <div className="counter">
-                      <button aria-label={`Remove ${role.name}`} onClick={() => setCounts({ ...counts, [role.id]: Math.max(0, (counts[role.id] || 0) - 1) })}><Minus size={13} /></button>
+                      <button aria-label={`Remove ${role.name}`} disabled={role.id === "villager" || !(counts[role.id] || 0)} onClick={() => changeRoleCount(role.id, -1)}><Minus size={13} /></button>
                       <span>{counts[role.id] || 0}</span>
-                      <button aria-label={`Add ${role.name}`} disabled={!!role.unique && !!counts[role.id]} onClick={() => setCounts({ ...counts, [role.id]: (counts[role.id] || 0) + 1 })}><Plus size={13} /></button>
+                      <button aria-label={`Add ${role.name}`} disabled={(!!role.unique && !!counts[role.id]) || (role.id === "villager" && cardTotal >= playerCount) || (role.id !== "villager" && cardTotal >= playerCount && !(counts.villager || 0))} onClick={() => changeRoleCount(role.id, 1)}><Plus size={13} /></button>
                     </div>
                   </div>
                 ))}

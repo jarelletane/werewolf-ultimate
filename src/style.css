@@ -365,6 +365,10 @@ header {
   font-size: 12px;
 }
 .player-count-label select { width: 100%; }
+.player-count-label small {
+  color: #7f899d;
+  font-weight: 400;
+}
 .panelhead {
   display: flex;
   align-items: center;

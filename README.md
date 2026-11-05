@@ -17,7 +17,7 @@ Open the Vite URL printed in your terminal. For a production build run `npm run 
 
 ## Game flow
 
-1. Choose the player count, enter player names, select the physical cards being used, configure timers, and press Continue. The app uses the card list only to build the moderator sequence; it never assigns cards to players.
+1. Choose the player count (excluding the moderator), enter player names, select the physical cards being used, configure timers, and press Continue. The card total is capped to the player count, with Villagers automatically filling open slots. The app uses the card list only to build the moderator sequence; it never assigns cards to players.
 2. Once everyone is ready and seated, play the opening introduction and press Start Game. Keep the moderator dashboard private while recording night actions; living players' roles are never entered or displayed.
    Night One is for wolf-pack recognition and role setup only; the wolves do not select or eliminate a victim until Night Two.
 3. During Night One, introduce the Wolves, play the Seer narration immediately afterward when a Seer is present, link the Lovers if Cupid is present, and introduce the Doctor and Witch without using their abilities. No player can die. Seer and Detective choices are handled privately without app entry. From Night Two onward, record only actions needed for resolution and skip roles not present or already eliminated.
