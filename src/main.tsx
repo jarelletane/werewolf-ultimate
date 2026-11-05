@@ -162,38 +162,24 @@ const say = (text: string) => {
   };
   window.speechSynthesis.speak(utter);
 };
-const defaultNames = [
-  "Alex",
-  "Sam",
-  "Jordan",
-  "Taylor",
-  "Morgan",
-  "Casey",
-  "Riley",
-  "Jamie",
-  "Charlie",
-  "Avery",
-  "Drew",
-  "Robin",
-];
 function Timer({ seconds, label }: { seconds: number; label: string }) {
   const [remaining, setRemaining] = useState(seconds);
-  const [running, setRunning] = useState(false);
+  const [running, setRunning] = useState(true);
   useEffect(() => {
     setRemaining(seconds);
-    setRunning(false);
+    setRunning(true);
   }, [seconds, label]);
   useEffect(() => {
     if (!running) return;
-    const start = Date.now();
-    const initial = remaining;
     const t = setInterval(() => {
-      const n = Math.max(0, initial - Math.floor((Date.now() - start) / 1000));
-      setRemaining(n);
-      if (n === 0) setRunning(false);
-    }, 200);
+      setRemaining((current) => {
+        const next = Math.max(0, current - 1);
+        if (next === 0) setRunning(false);
+        return next;
+      });
+    }, 1000);
     return () => clearInterval(t);
-  }, [running]);
+  }, [running, label]);
   const format = (n: number) =>
     `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
   return (
@@ -212,7 +198,7 @@ function Timer({ seconds, label }: { seconds: number; label: string }) {
         </button>
         <button
           onClick={() => {
-            setRunning(false);
+            setRunning(true);
             setRemaining(seconds);
           }}
         >
@@ -451,8 +437,8 @@ function App() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [showEndGame, setShowEndGame] = useState(false);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
-  const [names, setNames] = useState(defaultNames.join("\n"));
-  const [playerCount, setPlayerCount] = useState(defaultNames.length);
+  const [names, setNames] = useState("");
+  const [playerCount, setPlayerCount] = useState(12);
   const [counts, setCounts] = useState<Partial<Record<RoleId, number>>>({ werewolf: 2, seer: 1, doctor: 1, witch: 1, hunter: 1, villager: 6 });
   const [setupError, setSetupError] = useState("");
   const [selection, setSelection] = useState("");
@@ -461,7 +447,7 @@ function App() {
   const [manualTarget, setManualTarget] = useState("");
   const [eliminatedRole, setEliminatedRole] = useState<RoleId | "">("");
   const [voteTarget, setVoteTarget] = useState("");
-  const [discussionStarted, setDiscussionStarted] = useState(false);
+  const [dawnCountdown, setDawnCountdown] = useState<number | null>(null);
   const previousPhase = useRef(g.phase);
   const players = alive(g),
     steps = nightSteps(g),
@@ -491,6 +477,25 @@ function App() {
           : g.phase === "ended"
             ? `The final bell tolls. ${g.winner} have won the game.`
             : "A darkness gathers over the village.";
+  const narrationCanPlay = !(
+    g.phase === "day" && g.round > 1 && g.nightResult.length > 0
+  );
+  const dawnInstruction =
+    "Everyone, keep your eyes closed. The night is ending. Wait for the morning call before opening your eyes.";
+  useEffect(() => {
+    if (dawnCountdown === null) return;
+    if (dawnCountdown > 0) {
+      const timer = window.setTimeout(
+        () => setDawnCountdown((count) => (count === null ? null : count - 1)),
+        1000,
+      );
+      return () => window.clearTimeout(timer);
+    }
+    set(resolveNight(g));
+    setDawnCountdown(null);
+    setSelection("");
+    setSecondary("");
+  }, [dawnCountdown]);
   useEffect(() => {
     const prior = previousPhase.current;
     previousPhase.current = g.phase;
@@ -513,9 +518,11 @@ function App() {
     set({ ...g, ...patch });
   }
   function changePlayerCount(count: number) {
-    const currentNames = names.split("\n").map((name) => name.trim());
-    const next = Array.from({ length: count }, (_, index) => currentNames[index] || defaultNames[index] || `Player ${index + 1}`);
-    setNames(next.join("\n"));
+    const currentNames = names
+      .split("\n")
+      .map((name) => name.trim())
+      .filter(Boolean);
+    setNames(currentNames.slice(0, count).join("\n"));
     setPlayerCount(count);
     setCounts((current) => {
       const nextCounts = { ...current };
@@ -636,10 +643,13 @@ function App() {
       setSecondary("");
       setWitchMode("heal");
     } else {
-      set(resolveNight(g));
-      setSelection("");
-      setSecondary("");
+      beginDawnTransition();
     }
+  }
+  function beginDawnTransition() {
+    say(dawnInstruction);
+    setVoices(true);
+    setDawnCountdown(5);
   }
   function resolveHunter() {
     if (!g.pendingHunter || !manualTarget) return;
@@ -683,8 +693,6 @@ function App() {
       winner: jesterWon ? "Jester" : g.winner,
       phase: jesterWon ? "ended" : g.phase,
     });
-    say(publicAnnouncement);
-    setVoices(true);
     setEliminatedRole("");
   }
   function declareWinner(winner: "Village" | "Werewolves") {
@@ -719,8 +727,8 @@ function App() {
         saves={saves || []}
         onNew={() => {
           reset();
-          setNames(defaultNames.join("\n"));
-          setPlayerCount(defaultNames.length);
+          setNames("");
+          setPlayerCount(12);
           setCounts({ werewolf: 2, seer: 1, doctor: 1, witch: 1, hunter: 1, villager: 6 });
           setSetupView("setup");
           setScreen("create");
@@ -853,8 +861,8 @@ function App() {
                 <span className="pill">{playerCount}</span>
               </div>
               <p className="muted">
-                Enter one name per line. These are sample names—replace them
-                with your group.
+                Enter one player name per line. Player names are never filled
+                in or assigned automatically.
               </p>
               <label className="player-count-label">
                 Number of players <small>(not including the moderator)</small>
@@ -867,6 +875,7 @@ function App() {
                 onChange={(e) => setNames(e.target.value)}
                 rows={14}
                 spellCheck={false}
+                placeholder={Array.from({ length: Math.min(playerCount, 5) }, (_, index) => `Player ${index + 1} name`).join("\n")}
               />
             </section>
             <section className="panel">
@@ -987,26 +996,37 @@ function App() {
                           ? "Let the accusations begin"
                           : "The village must choose"}
                     </h2>
+                    <div className="script-label">
+                      <BookOpen size={14} /> Script — read aloud
+                    </div>
                     <p className="narration">“{narration}”</p>
                     <div className="speech">
-                      <button
-                        onClick={() => {
-                          say(narration);
-                          setVoices(true);
-                        }}
-                      >
-                        <Volume2 size={17} /> Read aloud
-                      </button>
-                      <button
-                        onClick={() => {
-                          stopNarration();
-                          setVoices(false);
-                        }}
-                      >
-                        <VolumeX size={17} /> Stop
-                      </button>
+                      {narrationCanPlay ? (
+                        <>
+                          <button
+                            onClick={() => {
+                              say(narration);
+                              setVoices(true);
+                            }}
+                          >
+                            <Volume2 size={17} /> Play narration
+                          </button>
+                          <button
+                            onClick={() => {
+                              stopNarration();
+                              setVoices(false);
+                            }}
+                          >
+                            <VolumeX size={17} /> Stop
+                          </button>
+                        </>
+                      ) : null}
                       <span>
-                        {voices ? "Narration enabled" : "Dramatic narration"}
+                        {narrationCanPlay
+                          ? voices
+                            ? "Narration enabled"
+                            : "Optional recorded narration"
+                          : "Moderator reads this passage because it contains player names"}
                       </span>
                     </div>
                   </section>
@@ -1211,7 +1231,7 @@ function App() {
                   ) : (
                     <button
                       className="primary"
-                      onClick={() => set(resolveNight(g))}
+                      onClick={beginDawnTransition}
                     >
                       Bring on the dawn <Sun size={17} />
                     </button>
@@ -1233,11 +1253,7 @@ function App() {
                         .join(", ")}
                     </p>
                   )}
-                  {!discussionStarted ? (
-                    <button className="primary big" onClick={() => setDiscussionStarted(true)}>Start discussion <Users size={18} /></button>
-                  ) : (
-                    <button className="primary big" onClick={() => { update({ phase: "vote", votes: {} }); setDiscussionStarted(false); }}>Record round elimination <Vote size={18} /></button>
-                  )}
+                  <button className="primary big" onClick={() => update({ phase: "vote", votes: {} })}>Record round elimination <Vote size={18} /></button>
                 </section>
               )}
               {g.phase === "vote" && !g.pendingHunter && !awaitingReveal && (
@@ -1370,6 +1386,20 @@ function App() {
           </div>
         )}
       </main>
+      {dawnCountdown !== null && (
+        <div className="modalback dawn-transition" role="dialog" aria-modal="true" aria-labelledby="dawn-title">
+          <div className="modal">
+            <Eye size={30} />
+            <div className="script-label">
+              <BookOpen size={14} /> Script — read aloud
+            </div>
+            <h2 id="dawn-title">Keep every player’s eyes closed</h2>
+            <p>“{dawnInstruction}”</p>
+            <div className="dawn-count" aria-live="polite">{dawnCountdown}</div>
+            <small>The rooster and daytime screen will begin automatically.</small>
+          </div>
+        </div>
+      )}
       {showEndGame && (
         <div className="modalback">
           <div className="modal">
