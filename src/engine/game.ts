@@ -67,13 +67,14 @@ export function checkWinner(g:Game):string|null{
  if(wolves>=village)return 'Werewolves';
  return null;
 }
-export function inferCardsOnlyWinner(g:Game):'Village'|'Werewolves'|null{
+export function inferCardsOnlyWinner(g:Game):'Village'|'Werewolves'|'Serial Killer'|null{
  if(!g.cardsOnly||g.players.some(player=>!player.alive&&!player.revealedRole))return null;
  const remaining=Object.entries(g.deckRoles).filter((entry):entry is [RoleId,number]=>typeof entry[1]==='number'&&entry[1]>0);
  const roleTotal=remaining.reduce((sum,[,count])=>sum+count,0),living=alive(g).length;
  if(roleTotal!==living)return null;
  const wolves=remaining.reduce((sum,[role,count])=>sum+(roleOf(role).team==='wolf'?count:0),0);
  const serialKillers=remaining.reduce((sum,[role,count])=>sum+(role==='serial'?count:0),0);
+ if(living===1&&serialKillers===1)return 'Serial Killer';
  if(wolves===0&&serialKillers===0)return 'Village';
  if(wolves>0&&wolves>=living-wolves)return 'Werewolves';
  return null;

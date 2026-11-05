@@ -503,7 +503,7 @@ function App() {
   const [setupView, setSetupView] = useState<"intro" | "guide" | "setup">("setup");
   const [confirmReset, setConfirmReset] = useState(false);
   const [showEndGame, setShowEndGame] = useState(false);
-  const [suggestedWinner, setSuggestedWinner] = useState<"Village" | "Werewolves" | null>(null);
+  const [suggestedWinner, setSuggestedWinner] = useState<"Village" | "Werewolves" | "Serial Killer" | null>(null);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
   const [names, setNames] = useState("");
   const [playerCount, setPlayerCount] = useState(12);
@@ -1013,17 +1013,32 @@ function App() {
         hunterNarration,
       );
     }
+    if (jesterWon) {
+      const jesterNarration =
+        "The village has been deceived. By condemning the Jester, you have fulfilled the Jester’s design. The Jester has won.";
+      playNarrationClips(
+        [{ src: "/audio/narration/75-jester-victory.mp3", text: jesterNarration }],
+        jesterNarration,
+      );
+    }
     setEliminatedRole("");
   }
-  function declareWinner(winner: "Village" | "Werewolves") {
+  function declareWinner(winner: "Village" | "Werewolves" | "Serial Killer") {
     const narration = winner === "Village"
       ? "The final shadow has fallen. The Werewolves have been destroyed. The Village has won."
-      : "The village has fallen. The monsters have won. The Werewolves have claimed the village.";
+      : winner === "Werewolves"
+        ? "The village has fallen. The monsters have won. The Werewolves have claimed the village."
+        : "Silence falls over the village. One figure remains among the dead. The Serial Killer has claimed the final victory.";
+    const narrationFile = winner === "Village"
+      ? "70-village-victory"
+      : winner === "Werewolves"
+        ? "71-werewolf-victory"
+        : "76-serial-killer-victory";
     set({ ...g, winner, phase: "ended", history: [...g.history, `${winner} victory declared by the moderator`] });
     playNarrationClips(
       [
         {
-          src: `/audio/narration/${winner === "Village" ? "70-village-victory" : "71-werewolf-victory"}.mp3`,
+          src: `/audio/narration/${narrationFile}.mp3`,
           text: narration,
         },
       ],
@@ -1034,13 +1049,36 @@ function App() {
   }
   function endWithoutWinner() {
     set({ ...g, winner: "No winner", phase: "ended", history: [...g.history, "The moderator ended the game"] });
-    stopNarration();
+    const ending =
+      "The tale ends here, though no victor has been declared. The village’s fate shall remain unknown.";
+    playNarrationClips(
+      [{ src: "/audio/narration/74-game-ended.mp3", text: ending }],
+      ending,
+    );
     setShowEndGame(false);
     setSuggestedWinner(null);
   }
   function finishDayElimination(target: string | null) {
     if (!target) {
-      set({ ...g, phase: "night", round: g.round + 1, step: 0, actions: [], votes: {}, silenced: [], tieCandidates: [], isRevote: false, history: [...g.history, `Day ${g.round}: no elimination`] });
+      const noElimination =
+        "The village has failed to reach a decision. No one will be eliminated today. Night will soon fall once again.";
+      skipNextAutomaticNarration.current = true;
+      playNarrationClips(
+        [{ src: "/audio/narration/73-no-elimination.mp3", text: noElimination }],
+        noElimination,
+        () => {
+          set({ ...g, phase: "night", round: g.round + 1, step: 0, actions: [], votes: {}, silenced: [], tieCandidates: [], isRevote: false, history: [...g.history, `Day ${g.round}: no elimination`] });
+          const nightOpening =
+            "Night has fallen once again. Everyone, close your eyes. Keep your head lowered and remain silent. Werewolves, awaken. Silently choose one player to eliminate.";
+          playNarrationClips(
+            [
+              { src: "/audio/narration/11-night-begins.mp3", text: "Night has fallen once again. Everyone, close your eyes. Keep your head lowered and remain silent." },
+              { src: "/audio/narration/40-wolves-hunt.mp3", text: "Werewolves, awaken. Silently choose one player to eliminate." },
+            ],
+            nightOpening,
+          );
+        },
+      );
     } else {
       const next = eliminate(g, [target], `Day ${g.round} vote`);
       set({ ...next, phase: "night", round: g.round + 1, step: 0, actions: [], votes: {}, silenced: [], tieCandidates: [], isRevote: false });
@@ -1635,6 +1673,19 @@ function App() {
                   >
                     Confirm elimination <ChevronRight size={18} />
                   </button>
+                  <button
+                    className="secondary big"
+                    onClick={() => {
+                      const tiedVote =
+                        "The vote is tied. The village has failed to reach a decision. The tied players will now face a final vote.";
+                      playNarrationClips(
+                        [{ src: "/audio/narration/72-tied-vote.mp3", text: tiedVote }],
+                        tiedVote,
+                      );
+                    }}
+                  >
+                    Announce tie and revote
+                  </button>
                   <button className="secondary big" onClick={() => finishDayElimination(null)}>No elimination this round</button>
                 </section>
               )}
@@ -1776,12 +1827,18 @@ function App() {
             <Trophy size={30} />
             <div className="eyebrow">Victory condition reached</div>
             <h2 id="winner-check-title">
-              {suggestedWinner === "Werewolves" ? "The Werewolves have reached parity" : "No Werewolves remain"}
+              {suggestedWinner === "Werewolves"
+                ? "The Werewolves have reached parity"
+                : suggestedWinner === "Serial Killer"
+                  ? "The Serial Killer stands alone"
+                  : "No Werewolves remain"}
             </h2>
             <p>
               {suggestedWinner === "Werewolves"
                 ? `Based on the revealed cards, the remaining wolf-aligned cards now equal or outnumber the other ${players.length === 2 ? "player" : "players"}.`
-                : "Based on the revealed cards, every wolf-aligned card has been eliminated."}
+                : suggestedWinner === "Serial Killer"
+                  ? "Based on the revealed cards, the Serial Killer is the final surviving player."
+                  : "Based on the revealed cards, every wolf-aligned card has been eliminated."}
             </p>
             <p className="muted">
               Confirm the result to end the game and play the final narration. If a fallen role was entered incorrectly, keep the game open and correct the record manually.
