@@ -1086,7 +1086,7 @@ function App() {
         "The village has failed to reach a decision. No one will be eliminated today. Night will soon fall once again.";
       skipNextAutomaticNarration.current = true;
       playNarrationClips(
-        [{ src: "/audio/narration/73-no-elimination.mp3", text: noElimination }],
+        [{ src: "/audio/narration/73-no-elimination.mp3?v=20261105-2", text: noElimination }],
         noElimination,
         () => {
           set({ ...g, phase: "night", round: g.round + 1, step: 0, actions: [], votes: {}, silenced: [], tieCandidates: [], isRevote: false, history: [...g.history, `Day ${g.round}: no elimination`] });
