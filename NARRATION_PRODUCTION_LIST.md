@@ -179,6 +179,10 @@ Record each item as a separate MP3 file. Where a **MODERATOR PAUSE** is shown, t
 - [ ] `64-voting-begins.mp3`
   - “The discussion is over. The village must now choose whether someone will be eliminated.”
 
+- [ ] `65-murder-reveal.mp3`
+  - “Morning has come, and a murder has taken place. Moderator, please reveal who was murdered. Those who have fallen must remain silent for the rest of the game.”
+  - The moderator reveals the player’s name after this generic recording finishes.
+
 - [ ] Moderator reads the morning announcement when it contains eliminated player names.
 
 - [ ] Moderator reads the daytime elimination announcement because it contains a player name and may contain a role.

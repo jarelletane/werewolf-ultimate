@@ -568,16 +568,14 @@ function App() {
         ? g.round === 1
           ? "The village awakens peacefully, unaware of the danger lurking among its people. Open your eyes. Introduce yourselves, and decide who can be trusted."
           : g.nightResult.length
-          ? `Morning has come. The village awakens to tragedy. ${g.nightResult.join(" and ")} did not survive the night.`
+          ? "Morning has come, and a murder has taken place. Moderator, please reveal who was murdered. Those who have fallen must remain silent for the rest of the game."
           : "The sun rises. Against all odds, everyone has survived the night. Open your eyes and begin your discussion."
         : g.phase === "vote"
           ? "The discussion is over. The village must now choose whether someone will be eliminated."
           : g.phase === "ended"
             ? `The final bell tolls. ${g.winner} have won the game.`
             : "A darkness gathers over the village.";
-  const narrationCanPlay = !(
-    g.phase === "day" && g.round > 1 && g.nightResult.length > 0
-  );
+  const narrationCanPlay = true;
   const dawnInstruction =
     "Everyone, keep your eyes closed. The night is ending. Wait for the morning call before opening your eyes.";
   const narrationClips: NarrationClip[] = (() => {
@@ -666,6 +664,9 @@ function App() {
     }
     if (g.phase === "day" && g.nightResult.length === 0) {
       return [{ src: "/audio/narration/62-morning-no-deaths.mp3", text: narration }];
+    }
+    if (g.phase === "day" && g.nightResult.length > 0) {
+      return [{ src: "/audio/narration/65-murder-reveal.mp3", text: narration }];
     }
     if (g.phase === "vote") {
       return [{ src: "/audio/narration/64-voting-begins.mp3", text: narration }];
@@ -1588,6 +1589,12 @@ function App() {
                     <h2>{g.round === 1 ? "First day introductions" : `Day ${g.round} discussion`}</h2>
                   </div>
                   <p className="muted">{g.round === 1 ? "Invite each player to introduce themselves. When everyone is ready, begin the timed discussion." : g.nightResult.length ? `Lost last night: ${g.nightResult.join(", ")}` : "No one died last night."}</p>
+                  {g.round > 1 && g.nightResult.length > 0 && (
+                    <div className="moderator-reveal">
+                      <strong>Moderator reveal</strong>
+                      <p>{g.nightResult.join(" and ")} {g.nightResult.length === 1 ? "was" : "were"} murdered. Ask {g.nightResult.length === 1 ? "this player" : "these players"} to remain silent.</p>
+                    </div>
+                  )}
                   {g.silenced.length > 0 && (
                     <p className="muted">
                       Silenced:{" "}

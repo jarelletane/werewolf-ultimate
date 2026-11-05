@@ -649,6 +649,23 @@ select:focus {
   border-radius: 10px;
   color: #b3e9d8;
 }
+.moderator-reveal {
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid #81545d;
+  border-radius: 10px;
+  background: #352329;
+}
+.moderator-reveal strong {
+  color: #efb0b9;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.moderator-reveal p {
+  margin: 7px 0 0;
+  color: #f0d7da;
+}
 .roster {
   max-height: 520px;
   overflow: auto;
@@ -1085,6 +1102,16 @@ select:focus {
 .day-theme .person,
 .day-theme .logline {
   border-color: #d7c5a2;
+}
+.day-theme .moderator-reveal {
+  background: #f2dcd6;
+  border-color: #b98278;
+}
+.day-theme .moderator-reveal strong {
+  color: #713c38;
+}
+.day-theme .moderator-reveal p {
+  color: #4f302d;
 }
 .day-theme .avatar {
   color: #594721;
