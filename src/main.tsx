@@ -99,6 +99,29 @@ const AMBIENCE_VOLUME = 0.18;
 const DUCKED_VOLUME = 0.0015;
 const CRITICAL_NIGHT_NARRATION =
   "Three souls remain, and a Werewolf still walks among you. If the village enters the night and the hunt succeeds, the Werewolf may seize control. This may be your final chance.";
+const ROLE_MINIMUM_PLAYERS: Partial<Record<RoleId, number>> = {
+  witch: 6,
+  bodyguard: 6,
+  detective: 6,
+  cupid: 7,
+  apprentice: 7,
+  hunter: 7,
+  jester: 7,
+  alpha: 8,
+  silencer: 8,
+  serial: 8,
+};
+const maxWolfCards = (players: number) =>
+  players <= 7 ? 1 : players <= 11 ? 2 : players <= 15 ? 3 : 4;
+const recommendedDeck = (players: number): Partial<Record<RoleId, number>> => {
+  const wolves = maxWolfCards(players);
+  return {
+    werewolf: wolves,
+    seer: 1,
+    doctor: 1,
+    villager: Math.max(0, players - wolves - 2),
+  };
+};
 let ambienceFade: number | undefined;
 let activeUtterance: SpeechSynthesisUtterance | null = null;
 let activeNarrationAudio: HTMLAudioElement | null = null;
@@ -550,8 +573,8 @@ function App() {
   const [suggestedWinner, setSuggestedWinner] = useState<"Village" | "Werewolves" | "Serial Killer" | null>(null);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
   const [names, setNames] = useState("");
-  const [playerCount, setPlayerCount] = useState(12);
-  const [counts, setCounts] = useState<Partial<Record<RoleId, number>>>({ werewolf: 2, seer: 1, doctor: 1, witch: 1, hunter: 1, villager: 6 });
+  const [playerCount, setPlayerCount] = useState(5);
+  const [counts, setCounts] = useState<Partial<Record<RoleId, number>>>(() => recommendedDeck(5));
   const [setupError, setSetupError] = useState("");
   const [selection, setSelection] = useState("");
   const [secondary, setSecondary] = useState("");
@@ -570,6 +593,10 @@ function App() {
     current = steps[g.step],
     actor = current?.actors[0],
     cardTotal = Object.values(counts).reduce((sum, count) => sum + (count || 0), 0),
+    selectedWolfCards = Object.entries(counts).reduce(
+      (sum, [role, count]) => sum + (count && roleOf(role as RoleId).team === "wolf" ? count : 0),
+      0,
+    ),
     people = names
       .split("\n")
       .map((n) => n.trim())
@@ -862,27 +889,8 @@ function App() {
       .filter(Boolean);
     setNames(currentNames.slice(0, count).join("\n"));
     setPlayerCount(count);
-    setCounts((current) => {
-      const nextCounts = { ...current };
-      let total = Object.values(nextCounts).reduce((sum, value) => sum + (value || 0), 0);
-      while (total > count && (nextCounts.villager || 0) > 0) {
-        nextCounts.villager = (nextCounts.villager || 0) - 1;
-        total -= 1;
-      }
-      const removable: RoleId[] = ["hunter", "priest", "tough", "bodyguard", "detective", "apprentice", "cupid", "witch", "doctor", "seer", "serial", "jester", "silencer", "alpha"];
-      for (const role of removable) {
-        while (total > count && (nextCounts[role] || 0) > 0) {
-          nextCounts[role] = (nextCounts[role] || 0) - 1;
-          total -= 1;
-        }
-      }
-      while (total > count && (nextCounts.werewolf || 0) > 1) {
-        nextCounts.werewolf = (nextCounts.werewolf || 0) - 1;
-        total -= 1;
-      }
-      if (total < count) nextCounts.villager = (nextCounts.villager || 0) + (count - total);
-      return nextCounts;
-    });
+    setCounts(recommendedDeck(count));
+    setSetupError("");
   }
   function changeRoleCount(role: RoleId, delta: 1 | -1) {
     setCounts((current) => {
@@ -895,6 +903,13 @@ function App() {
         return next;
       }
       if (roleOf(role).unique && currentValue > 0) return current;
+      if ((ROLE_MINIMUM_PLAYERS[role] || 5) > playerCount) return current;
+      const wolfCards = Object.entries(next).reduce(
+        (sum, [roleId, count]) =>
+          sum + (count && roleOf(roleId as RoleId).team === "wolf" ? count : 0),
+        0,
+      );
+      if (roleOf(role).team === "wolf" && wolfCards >= maxWolfCards(playerCount)) return current;
       if ((next.villager || 0) > 0 && role !== "villager") {
         next.villager = (next.villager || 0) - 1;
         next[role] = currentValue + 1;
@@ -925,6 +940,16 @@ function App() {
     }
     if (!Object.entries(counts).some(([role, count]) => count && roleOf(role as RoleId).team === "wolf")) {
       setSetupError("Include at least one Werewolf card.");
+      return;
+    }
+    const wolfCards = Object.entries(counts).reduce(
+      (sum, [role, count]) =>
+        sum + (count && roleOf(role as RoleId).team === "wolf" ? count : 0),
+      0,
+    );
+    if (wolfCards > maxWolfCards(playerCount)) {
+      const limit = maxWolfCards(playerCount);
+      setSetupError(`${playerCount} players supports at most ${limit} wolf-aligned card${limit === 1 ? "" : "s"}.`);
       return;
     }
     const game: Game = {
@@ -1200,8 +1225,8 @@ function App() {
           reset();
           setSuggestedWinner(null);
           setNames("");
-          setPlayerCount(12);
-          setCounts({ werewolf: 2, seer: 1, doctor: 1, witch: 1, hunter: 1, villager: 6 });
+          setPlayerCount(5);
+          setCounts(recommendedDeck(5));
           setSetupView("setup");
           setScreen("create");
         }}
@@ -1369,17 +1394,35 @@ function App() {
                 <span className="pill">{cardTotal} / {playerCount}</span>
               </div>
               <p className="muted">Choose the cards being dealt. The app uses this only to build the correct narration order—it never assigns a card to a player.</p>
+              <p className="balance-note">
+                Recommended balance: up to {maxWolfCards(playerCount)} wolf-aligned card{maxWolfCards(playerCount) === 1 ? "" : "s"} for {playerCount} players. Changing the player count resets this deck to a balanced suggestion.
+              </p>
               <div className="rolelist">
                 {ROLES.map((role) => (
                   <div className="roleline" key={role.id}>
                     <div>
                       <strong>{role.name}</strong>
-                      <small>{role.description}</small>
+                      <small>
+                        {role.description}
+                        {(ROLE_MINIMUM_PLAYERS[role.id] || 5) > playerCount
+                          ? ` Available from ${ROLE_MINIMUM_PLAYERS[role.id]} players.`
+                          : ""}
+                      </small>
                     </div>
                     <div className="counter">
                       <button aria-label={`Remove ${role.name}`} disabled={role.id === "villager" || !(counts[role.id] || 0)} onClick={() => changeRoleCount(role.id, -1)}><Minus size={13} /></button>
                       <span>{counts[role.id] || 0}</span>
-                      <button aria-label={`Add ${role.name}`} disabled={(!!role.unique && !!counts[role.id]) || (role.id === "villager" && cardTotal >= playerCount) || (role.id !== "villager" && cardTotal >= playerCount && !(counts.villager || 0))} onClick={() => changeRoleCount(role.id, 1)}><Plus size={13} /></button>
+                      <button
+                        aria-label={`Add ${role.name}`}
+                        disabled={
+                          (!!role.unique && !!counts[role.id]) ||
+                          (ROLE_MINIMUM_PLAYERS[role.id] || 5) > playerCount ||
+                          (role.team === "wolf" && selectedWolfCards >= maxWolfCards(playerCount)) ||
+                          (role.id === "villager" && cardTotal >= playerCount) ||
+                          (role.id !== "villager" && cardTotal >= playerCount && !(counts.villager || 0))
+                        }
+                        onClick={() => changeRoleCount(role.id, 1)}
+                      ><Plus size={13} /></button>
                     </div>
                   </div>
                 ))}

@@ -409,6 +409,16 @@ select:focus {
   overflow: auto;
   padding-right: 4px;
 }
+.balance-note {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid #4a4257;
+  border-radius: 10px;
+  color: #cbbce8;
+  background: #211d2b;
+  font-size: 12px;
+  line-height: 1.45;
+}
 .roleline {
   display: flex;
   justify-content: space-between;
