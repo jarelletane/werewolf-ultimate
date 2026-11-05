@@ -96,17 +96,6 @@ const useGame = create<Store>()(
 
 const AMBIENCE_VOLUME = 0.18;
 const DUCKED_VOLUME = 0.018;
-const COMING_SOON_ROLES = new Set<RoleId>([
-  "bodyguard",
-  "detective",
-  "priest",
-  "tough",
-  "silencer",
-  "serial",
-  "jester",
-  "apprentice",
-  "cupid",
-]);
 let ambienceFade: number | undefined;
 let activeUtterance: SpeechSynthesisUtterance | null = null;
 let activeNarrationAudio: HTMLAudioElement | null = null;
@@ -420,7 +409,7 @@ function WelcomeScreen({
       {showGuide && (
         <div className="guide-content">
           <section className="panel">
-            <div className="panelhead"><BookOpen size={18} /><h2>How a game works</h2><button className="smallbtn" onClick={() => say(gameExplanation)}><Volume2 size={14} /> Listen</button></div>
+            <div className="panelhead"><BookOpen size={18} /><h2>How a game works</h2><button className="smallbtn" onClick={() => playNarrationClips([{ src: "/audio/narration/02-how-to-play.mp3", text: gameExplanation }], gameExplanation)}><Volume2 size={14} /> Listen</button></div>
             <div className="game-steps">
               <div><span>1</span><strong>Deal the cards</strong><p>Each player secretly checks their physical role card. The app only needs the cards included in the deck.</p></div>
               <div><span>2</span><strong>Play the night</strong><p>Everyone closes their eyes. The moderator follows the app’s prompts while active roles silently choose targets.</p></div>
@@ -560,6 +549,18 @@ function App() {
                         ? "Doctor, awaken. Choose one player to protect tonight."
                         : current.key === "witch"
                           ? "Witch, awaken. The moderator will now reveal whether someone was attacked."
+                          : current.key === "cupid"
+                            ? "Cupid, open your eyes. Choose two players who shall be bound together by love."
+                            : current.key === "lovers"
+                              ? "Lovers, open your eyes and recognise one another."
+                              : current.key === "detective"
+                                ? "Detective, open your eyes. Point to one player whose identity you wish to investigate."
+                                : current.key === "bodyguard"
+                                  ? "Bodyguard, open your eyes and choose one player to protect."
+                                  : current.key === "silencer"
+                                    ? "Silencer, open your eyes and choose one player who must remain silent during the coming day."
+                                    : current.key === "serial"
+                                      ? "Serial Killer, open your eyes and choose your victim."
                           : current.prompt
             }`
           : "The night is over. Keep your eyes closed. The first light of dawn breaks over the village. Everyone, open your eyes.")
@@ -627,6 +628,36 @@ function App() {
           src: "/audio/narration/45-witch-awaken.mp3",
           text: "Witch, awaken. The moderator will now reveal whether someone was attacked.",
         });
+      } else if (current.key === "cupid") {
+        clips.push({
+          src: "/audio/narration/24-cupid-choice.mp3",
+          text: "Cupid, open your eyes. Choose two players who shall be bound together by love.",
+        });
+      } else if (current.key === "lovers") {
+        clips.push({
+          src: "/audio/narration/26-lovers-recognise.mp3",
+          text: "Lovers, open your eyes and recognise one another.",
+        });
+      } else if (current.key === "detective") {
+        clips.push({
+          src: "/audio/narration/50-detective-investigate.mp3",
+          text: "Detective, open your eyes. Point to one player whose identity you wish to investigate.",
+        });
+      } else if (current.key === "bodyguard") {
+        clips.push({
+          src: "/audio/narration/51-bodyguard-protect.mp3",
+          text: "Bodyguard, open your eyes and choose one player to protect.",
+        });
+      } else if (current.key === "silencer") {
+        clips.push({
+          src: "/audio/narration/53-silencer-action.mp3",
+          text: "Silencer, open your eyes and choose one player who must remain silent during the coming day.",
+        });
+      } else if (current.key === "serial") {
+        clips.push({
+          src: "/audio/narration/48-serial-killer-action.mp3",
+          text: "Serial Killer, open your eyes and choose your victim.",
+        });
       }
       return clips;
     }
@@ -675,6 +706,36 @@ function App() {
                     src: "/audio/narration/47-witch-close.mp3",
                     text: "Witch, close your eyes.",
                   }
+                : g.phase === "night" && current?.key === "cupid"
+                  ? {
+                      src: "/audio/narration/25-cupid-close.mp3",
+                      text: "Cupid, close your eyes.",
+                    }
+                  : g.phase === "night" && current?.key === "lovers"
+                    ? {
+                        src: "/audio/narration/27-lovers-close.mp3",
+                        text: "Lovers, close your eyes.",
+                      }
+                    : g.phase === "night" && current?.key === "detective"
+                      ? {
+                          src: "/audio/narration/29-detective-close.mp3",
+                          text: "Detective, close your eyes.",
+                        }
+                      : g.phase === "night" && current?.key === "bodyguard"
+                        ? {
+                            src: "/audio/narration/52-bodyguard-close.mp3",
+                            text: "Bodyguard, close your eyes.",
+                          }
+                        : g.phase === "night" && current?.key === "silencer"
+                          ? {
+                              src: "/audio/narration/54-silencer-close.mp3",
+                              text: "Silencer, close your eyes.",
+                            }
+                          : g.phase === "night" && current?.key === "serial"
+                            ? {
+                                src: "/audio/narration/49-serial-killer-close.mp3",
+                                text: "Serial Killer, close your eyes.",
+                              }
                 : null;
   useEffect(() => {
     const prior = previousPhase.current;
@@ -753,7 +814,6 @@ function App() {
         next.villager = (next.villager || 0) + 1;
         return next;
       }
-      if (COMING_SOON_ROLES.has(role)) return current;
       if (roleOf(role).unique && currentValue > 0) return current;
       if ((next.villager || 0) > 0 && role !== "villager") {
         next.villager = (next.villager || 0) - 1;
@@ -1150,16 +1210,13 @@ function App() {
                 {ROLES.map((role) => (
                   <div className="roleline" key={role.id}>
                     <div>
-                      <strong>
-                        {role.name}
-                        {COMING_SOON_ROLES.has(role.id) && <span className="coming-soon">Coming soon</span>}
-                      </strong>
+                      <strong>{role.name}</strong>
                       <small>{role.description}</small>
                     </div>
                     <div className="counter">
                       <button aria-label={`Remove ${role.name}`} disabled={role.id === "villager" || !(counts[role.id] || 0)} onClick={() => changeRoleCount(role.id, -1)}><Minus size={13} /></button>
                       <span>{counts[role.id] || 0}</span>
-                      <button aria-label={`Add ${role.name}`} disabled={COMING_SOON_ROLES.has(role.id) || (!!role.unique && !!counts[role.id]) || (role.id === "villager" && cardTotal >= playerCount) || (role.id !== "villager" && cardTotal >= playerCount && !(counts.villager || 0))} onClick={() => changeRoleCount(role.id, 1)}><Plus size={13} /></button>
+                      <button aria-label={`Add ${role.name}`} disabled={(!!role.unique && !!counts[role.id]) || (role.id === "villager" && cardTotal >= playerCount) || (role.id !== "villager" && cardTotal >= playerCount && !(counts.villager || 0))} onClick={() => changeRoleCount(role.id, 1)}><Plus size={13} /></button>
                     </div>
                   </div>
                 ))}
