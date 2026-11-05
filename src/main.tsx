@@ -100,6 +100,7 @@ const DUCKED_VOLUME = 0.0015;
 let ambienceFade: number | undefined;
 let activeUtterance: SpeechSynthesisUtterance | null = null;
 let activeNarrationAudio: HTMLAudioElement | null = null;
+let activeNarrationContext: AudioContext | null = null;
 let narrationRun = 0;
 let resumeAmbienceAfterNarration = false;
 
@@ -134,6 +135,8 @@ const stopNarration = () => {
   const run = ++narrationRun;
   activeNarrationAudio?.pause();
   activeNarrationAudio = null;
+  void activeNarrationContext?.close();
+  activeNarrationContext = null;
   activeUtterance = null;
   window.speechSynthesis?.cancel();
   restoreAmbience(run);
@@ -184,6 +187,7 @@ const playNarrationClips = (
   fallbackText: string,
   onComplete?: () => void,
   duckedVolume = DUCKED_VOLUME,
+  playbackGain = 1,
 ) => {
   if (clips.length === 0) {
     say(fallbackText, onComplete);
@@ -193,6 +197,8 @@ const playNarrationClips = (
   const run = ++narrationRun;
   activeNarrationAudio?.pause();
   activeNarrationAudio = null;
+  void activeNarrationContext?.close();
+  activeNarrationContext = null;
   activeUtterance = null;
   window.speechSynthesis?.cancel();
   resumeAmbienceAfterNarration = Boolean(background && !background.paused);
@@ -202,6 +208,8 @@ const playNarrationClips = (
     if (run !== narrationRun) return;
     if (index >= clips.length) {
       activeNarrationAudio = null;
+      void activeNarrationContext?.close();
+      activeNarrationContext = null;
       restoreAmbience(run);
       onComplete?.();
       return;
@@ -210,13 +218,26 @@ const playNarrationClips = (
     activeNarrationAudio = recording;
     recording.preload = "auto";
     recording.volume = 1;
+    if (playbackGain > 1 && "AudioContext" in window) {
+      const context = new AudioContext();
+      const source = context.createMediaElementSource(recording);
+      const gain = context.createGain();
+      gain.gain.value = playbackGain;
+      source.connect(gain).connect(context.destination);
+      activeNarrationContext = context;
+      void context.resume();
+    }
     recording.onended = () => playAt(index + 1);
     recording.onerror = () => {
       activeNarrationAudio = null;
+      void activeNarrationContext?.close();
+      activeNarrationContext = null;
       say(clips.slice(index).map((clip) => clip.text).join(" "), onComplete);
     };
     void recording.play().catch(() => {
       activeNarrationAudio = null;
+      void activeNarrationContext?.close();
+      activeNarrationContext = null;
       say(clips.slice(index).map((clip) => clip.text).join(" "), onComplete);
     });
   };
@@ -411,6 +432,7 @@ function WelcomeScreen({
               introduction,
               undefined,
               0,
+              2.4,
             )
           }
         >
