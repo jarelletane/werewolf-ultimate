@@ -221,7 +221,7 @@ const playNarrationClips = (
 
   playAt(0);
 };
-function Timer({ seconds, label }: { seconds: number; label: string }) {
+function Timer({ seconds, label, paused = false }: { seconds: number; label: string; paused?: boolean }) {
   const [remaining, setRemaining] = useState(seconds);
   const [running, setRunning] = useState(true);
   useEffect(() => {
@@ -229,7 +229,7 @@ function Timer({ seconds, label }: { seconds: number; label: string }) {
     setRunning(true);
   }, [seconds, label]);
   useEffect(() => {
-    if (!running) return;
+    if (!running || paused) return;
     const t = setInterval(() => {
       setRemaining((current) => {
         const next = Math.max(0, current - 1);
@@ -238,7 +238,7 @@ function Timer({ seconds, label }: { seconds: number; label: string }) {
       });
     }, 1000);
     return () => clearInterval(t);
-  }, [running, label]);
+  }, [running, label, paused]);
   const format = (n: number) =>
     `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
   return (
@@ -269,7 +269,7 @@ function Timer({ seconds, label }: { seconds: number; label: string }) {
   );
 }
 
-function AmbienceControl({ phase }: { phase: Game["phase"] }) {
+function AmbienceControl({ phase, paused = false }: { phase: Game["phase"]; paused?: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [enabled, setEnabled] = useState(true);
   const [playing, setPlaying] = useState(false);
@@ -308,7 +308,7 @@ function AmbienceControl({ phase }: { phase: Game["phase"] }) {
       }
     };
 
-    if (!enabled) {
+    if (!enabled || paused) {
       fadeAmbience(0);
       transitionTimer = window.setTimeout(() => audio.pause(), 380);
     } else if (
@@ -325,10 +325,10 @@ function AmbienceControl({ phase }: { phase: Game["phase"] }) {
     }
 
     return () => window.clearTimeout(transitionTimer);
-  }, [source, enabled]);
+  }, [source, enabled, paused]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || paused) return;
     const unlockAudio = () => {
       const audio = audioRef.current;
       if (audio?.paused) void audio.play().catch(() => undefined);
@@ -339,7 +339,7 @@ function AmbienceControl({ phase }: { phase: Game["phase"] }) {
       document.removeEventListener("pointerdown", unlockAudio);
       document.removeEventListener("keydown", unlockAudio);
     };
-  }, [enabled, source]);
+  }, [enabled, source, paused]);
 
   function toggle() {
     setEnabled((current) => !current);
@@ -518,6 +518,7 @@ function App() {
   const [setupView, setSetupView] = useState<"intro" | "guide" | "setup">("setup");
   const [confirmReset, setConfirmReset] = useState(false);
   const [showEndGame, setShowEndGame] = useState(false);
+  const [gamePaused, setGamePaused] = useState(false);
   const [suggestedWinner, setSuggestedWinner] = useState<"Village" | "Werewolves" | "Serial Killer" | null>(null);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
   const [names, setNames] = useState("");
@@ -1039,6 +1040,7 @@ function App() {
     setEliminatedRole("");
   }
   function declareWinner(winner: "Village" | "Werewolves" | "Serial Killer") {
+    setGamePaused(false);
     const narration = winner === "Village"
       ? "The final shadow has fallen. The Werewolves have been destroyed. The Village has won."
       : winner === "Werewolves"
@@ -1063,6 +1065,7 @@ function App() {
     setSuggestedWinner(null);
   }
   function endWithoutWinner() {
+    setGamePaused(false);
     set({ ...g, winner: "No winner", phase: "ended", history: [...g.history, "The moderator ended the game"] });
     const ending =
       "The tale ends here, though no victor has been declared. The village’s fate shall remain unknown.";
@@ -1109,6 +1112,7 @@ function App() {
       <HomeScreen
         saves={saves || []}
         onNew={() => {
+          setGamePaused(false);
           reset();
           setSuggestedWinner(null);
           setNames("");
@@ -1118,6 +1122,7 @@ function App() {
           setScreen("create");
         }}
         onContinue={(save) => {
+          setGamePaused(false);
           loadGame(save.id);
           setSetupView(save.game.phase === "setup" ? "intro" : "setup");
           setScreen(save.game.phase === "setup" ? "intro" : "game");
@@ -1173,7 +1178,7 @@ function App() {
             </p>
           </div>
           <div className="header-actions">
-            <AmbienceControl phase={g.phase} />
+            <AmbienceControl phase={g.phase} paused={gamePaused} />
             <div className="phasebadge">
               {g.phase === "night" ? (
                 <Moon size={16} />
@@ -1217,9 +1222,18 @@ function App() {
                     </>
                   )}
                   {g.phase !== "setup" && g.phase !== "ended" && (
-                    <button onClick={() => { setGameMenuOpen(false); setShowEndGame(true); }}>
-                      <Skull size={15} /> End current game
-                    </button>
+                    <>
+                      <button onClick={() => {
+                        setGameMenuOpen(false);
+                        stopNarration();
+                        setGamePaused(true);
+                      }}>
+                        <Pause size={15} /> Pause game
+                      </button>
+                      <button onClick={() => { setGameMenuOpen(false); setShowEndGame(true); }}>
+                        <Skull size={15} /> End current game
+                      </button>
+                    </>
                   )}
                   <button onClick={() => { setGameMenuOpen(false); setConfirmReset(true); }}>
                     <RotateCcw size={15} /> Restart game
@@ -1423,6 +1437,7 @@ function App() {
                     <Timer
                       seconds={g.phase === "day" ? g.settings.discussion : g.settings.vote}
                       label={`${g.phase} countdown`}
+                      paused={gamePaused}
                     />
                   )}
                 </>
@@ -1920,6 +1935,7 @@ function App() {
               <button
                 className="primary"
                 onClick={() => {
+                  setGamePaused(false);
                   reset();
                   setSuggestedWinner(null);
                   setTab("game");
@@ -1930,6 +1946,20 @@ function App() {
                 Reset game
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {gamePaused && (
+        <div className="modalback pause-overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+          <div className="modal pause-modal">
+            <Pause size={32} />
+            <div className="eyebrow">Progress autosaved</div>
+            <h2 id="pause-title">Game paused</h2>
+            <p>Ambience, narration, and the current countdown are paused. The village will wait here until the moderator is ready.</p>
+            <button className="primary big" autoFocus onClick={() => setGamePaused(false)}>
+              <Play size={17} /> Resume game
+            </button>
+            <small>If narration was interrupted, use Replay narration after resuming.</small>
           </div>
         </div>
       )}

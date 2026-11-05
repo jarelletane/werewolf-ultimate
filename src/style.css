@@ -794,6 +794,26 @@ select:focus {
   padding: 15px;
   z-index: 10;
 }
+.pause-overlay {
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+.pause-modal {
+  max-width: 430px;
+  text-align: center;
+}
+.pause-modal > svg {
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+.pause-modal .big {
+  width: 100%;
+  justify-content: center;
+  margin: 8px 0 12px;
+}
+.pause-modal small {
+  display: block;
+}
 .modal {
   background: #1c2232;
   border: 1px solid #4b5067;
