@@ -96,7 +96,7 @@ const useGame = create<Store>()(
 );
 
 const AMBIENCE_VOLUME = 0.18;
-const DUCKED_VOLUME = 0.018;
+const DUCKED_VOLUME = 0.006;
 let ambienceFade: number | undefined;
 let activeUtterance: SpeechSynthesisUtterance | null = null;
 let activeNarrationAudio: HTMLAudioElement | null = null;
@@ -283,20 +283,48 @@ function AmbienceControl({ phase }: { phase: Game["phase"] }) {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.volume = AMBIENCE_VOLUME;
+    audio.volume = 0;
     return () => audio.pause();
   }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.volume = AMBIENCE_VOLUME;
+    let transitionTimer: number | undefined;
+    const playSource = async () => {
+      if (audio.getAttribute("src") !== source) {
+        audio.src = source;
+        audio.load();
+      }
+      try {
+        await audio.play();
+        fadeAmbience(
+          activeNarrationAudio || activeUtterance
+            ? DUCKED_VOLUME
+            : AMBIENCE_VOLUME,
+        );
+      } catch {
+        setPlaying(false);
+      }
+    };
+
     if (!enabled) {
-      audio.pause();
-      return;
+      fadeAmbience(0);
+      transitionTimer = window.setTimeout(() => audio.pause(), 380);
+    } else if (
+      audio.getAttribute("src") &&
+      audio.getAttribute("src") !== source
+    ) {
+      fadeAmbience(0);
+      transitionTimer = window.setTimeout(() => {
+        audio.volume = 0;
+        void playSource();
+      }, 380);
+    } else {
+      void playSource();
     }
 
-    void audio.play().catch(() => setPlaying(false));
+    return () => window.clearTimeout(transitionTimer);
   }, [source, enabled]);
 
   useEffect(() => {
@@ -313,20 +341,8 @@ function AmbienceControl({ phase }: { phase: Game["phase"] }) {
     };
   }, [enabled, source]);
 
-  async function toggle() {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (enabled) {
-      setEnabled(false);
-      audio.pause();
-      return;
-    }
-    setEnabled(true);
-    try {
-      await audio.play();
-    } catch {
-      setPlaying(false);
-    }
+  function toggle() {
+    setEnabled((current) => !current);
   }
 
   return (
@@ -334,8 +350,7 @@ function AmbienceControl({ phase }: { phase: Game["phase"] }) {
       <audio
         id="ambience-audio"
         ref={audioRef}
-        src={source}
-        preload="none"
+        preload="auto"
         loop
         onPause={() => setPlaying(false)}
         onPlay={() => setPlaying(true)}
