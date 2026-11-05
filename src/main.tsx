@@ -559,6 +559,7 @@ function App() {
   const [eliminatedRole, setEliminatedRole] = useState<RoleId | "">("");
   const [voteTarget, setVoteTarget] = useState("");
   const [dawnTransition, setDawnTransition] = useState(false);
+  const [roleRevealReady, setRoleRevealReady] = useState(true);
   const previousPhase = useRef(g.phase);
   const skipNextAutomaticNarration = useRef(false);
   const players = alive(g),
@@ -783,13 +784,16 @@ function App() {
                               }
                 : null;
   useEffect(() => {
-    if (awaitingReveal) return;
+    if (awaitingReveal && g.phase !== "day") return;
     const prior = previousPhase.current;
     previousPhase.current = g.phase;
     if (prior !== "night" || g.phase !== "day") return;
     const rooster = document.querySelector<HTMLAudioElement>("#morning-rooster");
     const ambience = document.querySelector<HTMLAudioElement>("#ambience-audio");
-    if (!rooster) return;
+    if (!rooster) {
+      setRoleRevealReady(true);
+      return;
+    }
     const restoreBackground = Boolean(ambience && !ambience.paused);
     if (restoreBackground) fadeAmbience(0.035);
     rooster.currentTime = 0;
@@ -800,8 +804,10 @@ function App() {
       morningStarted = true;
       if (restoreBackground) fadeAmbience(AMBIENCE_VOLUME);
       if (narrationCanPlay) {
-        playNarrationClips(narrationClips, narration);
+        playNarrationClips(narrationClips, narration, () => setRoleRevealReady(true));
         setVoices(true);
+      } else {
+        setRoleRevealReady(true);
       }
     };
     rooster.onended = beginMorning;
@@ -998,6 +1004,7 @@ function App() {
     setVoices(true);
   }
   function finishDawnTransition() {
+    setRoleRevealReady(false);
     set(resolveNight(g));
     setDawnTransition(false);
     setSelection("");
@@ -1148,6 +1155,7 @@ function App() {
       <HomeScreen
         saves={saves || []}
         onNew={() => {
+          setRoleRevealReady(true);
           setGamePaused(false);
           reset();
           setSuggestedWinner(null);
@@ -1158,6 +1166,7 @@ function App() {
           setScreen("create");
         }}
         onContinue={(save) => {
+          setRoleRevealReady(true);
           setGamePaused(false);
           loadGame(save.id);
           setSetupView(save.game.phase === "setup" ? "intro" : "setup");
@@ -1841,7 +1850,7 @@ function App() {
           </div>
         )}
       </main>
-      {awaitingReveal && (
+      {awaitingReveal && (g.phase !== "day" || roleRevealReady) && (
         <div className="modalback required-role-reveal" role="dialog" aria-modal="true" aria-labelledby="role-reveal-title">
           <div className="modal">
             <Skull size={30} />
@@ -1971,6 +1980,7 @@ function App() {
               <button
                 className="primary"
                 onClick={() => {
+                  setRoleRevealReady(true);
                   setGamePaused(false);
                   reset();
                   setSuggestedWinner(null);
