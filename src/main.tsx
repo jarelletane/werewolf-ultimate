@@ -179,9 +179,14 @@ const stopNarration = () => {
   const run = ++narrationRun;
   activeNarrationAudio?.pause();
   activeNarrationAudio = null;
-  void activeNarrationContext?.close();
-  activeNarrationContext = null;
   restoreAmbience(run);
+};
+
+const unlockNarrationAudio = () => {
+  if (!("AudioContext" in window)) return null;
+  activeNarrationContext ??= new AudioContext();
+  void activeNarrationContext.resume();
+  return activeNarrationContext;
 };
 
 type NarrationClip = { src: string; text: string };
@@ -201,24 +206,14 @@ const playNarrationClips = (
   const run = ++narrationRun;
   activeNarrationAudio?.pause();
   activeNarrationAudio = null;
-  void activeNarrationContext?.close();
-  activeNarrationContext = null;
   resumeAmbienceAfterNarration = Boolean(background && !background.paused);
   fadeAmbience(duckedVolume, duckedVolume === 0 ? 30 : 60);
-  const narrationContext = playbackGain > 1 && "AudioContext" in window
-    ? new AudioContext()
-    : null;
-  if (narrationContext) {
-    activeNarrationContext = narrationContext;
-    void narrationContext.resume();
-  }
+  const narrationContext = playbackGain > 1 ? unlockNarrationAudio() : null;
 
   const playAt = (index: number) => {
     if (run !== narrationRun) return;
     if (index >= clips.length) {
       activeNarrationAudio = null;
-      void activeNarrationContext?.close();
-      activeNarrationContext = null;
       restoreAmbience(run);
       onComplete?.();
       return;
@@ -591,6 +586,7 @@ function App() {
   const [voteTarget, setVoteTarget] = useState("");
   const [dawnTransition, setDawnTransition] = useState(false);
   const [roleRevealReady, setRoleRevealReady] = useState(true);
+  const [nightNarrationReady, setNightNarrationReady] = useState(true);
   const [pendingCriticalNight, setPendingCriticalNight] = useState<Game | null>(null);
   const previousPhase = useRef(g.phase);
   const skipNextAutomaticNarration = useRef(false);
@@ -857,8 +853,16 @@ function App() {
       skipNextAutomaticNarration.current = false;
       return;
     }
-    if (!narrationCanPlay) return;
-    playNarrationClips(narrationClips, narration);
+    if (!narrationCanPlay) {
+      setNightNarrationReady(true);
+      return;
+    }
+    if (g.phase === "night") setNightNarrationReady(false);
+    playNarrationClips(
+      narrationClips,
+      narration,
+      g.phase === "night" ? () => setNightNarrationReady(true) : undefined,
+    );
     setVoices(true);
   }, [g.phase, g.round, g.step, awaitingReveal?.id]);
   useEffect(() => {
@@ -976,7 +980,9 @@ function App() {
     setScreen("intro");
   }
   function startGame() {
+    unlockNarrationAudio();
     skipNextAutomaticNarration.current = true;
+    setNightNarrationReady(false);
     set({ ...g, phase: "night", round: 1, step: 0, actions: [], votes: {}, history: [] });
     setTab("game");
     setScreen("game");
@@ -1002,6 +1008,7 @@ function App() {
             },
           ],
           firstNight,
+          () => setNightNarrationReady(true),
         );
         setVoices(true);
       },
@@ -1033,6 +1040,7 @@ function App() {
   function advance() {
     const continueAfterClosing = () => {
       if (g.step < steps.length - 1) {
+        setNightNarrationReady(false);
         update({ step: g.step + 1 });
         setSelection("");
         setSecondary("");
@@ -1237,6 +1245,7 @@ function App() {
           setScreen("create");
         }}
         onContinue={(save) => {
+          unlockNarrationAudio();
           setPendingCriticalNight(null);
           setRoleRevealReady(true);
           setGamePaused(false);
@@ -1541,9 +1550,11 @@ function App() {
                         <>
                           <button
                             onClick={() => {
+                              if (g.phase === "night") setNightNarrationReady(false);
                               playNarrationClips(
                                 narrationClips,
                                 narration,
+                                g.phase === "night" ? () => setNightNarrationReady(true) : undefined,
                               );
                               setVoices(true);
                             }}
@@ -1749,7 +1760,7 @@ function App() {
                         >
                           <Check size={16} /> {current.ability === "kill" ? "Record elimination target" : current.ability === "inspect" ? "Record pointed player" : "Record action"}
                         </button>}
-                        <button className="primary" onClick={advance} disabled={current.key === "witch" && !witchInstructionReady}>
+                        <button className="primary" onClick={advance} disabled={!nightNarrationReady || (current.key === "witch" && !witchInstructionReady)}>
                           {g.step === steps.length - 1
                             ? "Resolve night"
                             : "Next role"}{" "}
@@ -1757,7 +1768,9 @@ function App() {
                         </button>
                       </div>
                       <small className="muted">
-                        {current.ability === "none"
+                        {!nightNarrationReady
+                          ? "Listen to the required narration before continuing. If it was stopped, use Replay narration above."
+                          : current.ability === "none"
                           ? "Night One is recognition only. No wolf target is selected."
                           : hasAction
                           ? "✓ Action recorded. You can change it before advancing."
