@@ -545,17 +545,35 @@ export default function App() {
     setSelection("");
     setSecondary("");
   }
+  function gameWithSelectedNightAction() {
+    if (!current || current.key !== "wolves" || !actor || !selection) return g;
+    const type = current.ability;
+    const action: Action = {
+      actor: actor.id,
+      type,
+      target: selection,
+      secondary: type === "link" ? secondary : undefined,
+    };
+    return {
+      ...g,
+      actions: [
+        ...g.actions.filter((existing) => !(existing.actor === actor.id && existing.type === type)),
+        action,
+      ],
+    };
+  }
   function advance() {
+    const gameAfterSelection = gameWithSelectedNightAction();
     const continueAfterClosing = () => {
       if (g.step < steps.length - 1) {
         setNightNarrationReady(false);
-        update({ step: g.step + 1 });
+        set({ ...gameAfterSelection, step: g.step + 1 });
         setSelection("");
         setSecondary("");
         setWitchMode("heal");
         setWitchInstructionReady(false);
       } else {
-        beginDawnTransition();
+        beginDawnTransition(gameAfterSelection);
       }
     };
     if (closingNarration) {
@@ -568,18 +586,18 @@ export default function App() {
     }
     continueAfterClosing();
   }
-  function beginDawnTransition() {
+  function beginDawnTransition(game = g) {
     setDawnTransition(true);
     playNarrationClips(
       [{ src: "/audio/narration/60-night-ending.mp3", text: dawnInstruction }],
       dawnInstruction,
-      finishDawnTransition,
+      () => finishDawnTransition(game),
     );
     setVoices(true);
   }
-  function finishDawnTransition() {
+  function finishDawnTransition(game = g) {
     setRoleRevealReady(false);
-    set(resolveNight(g));
+    set(resolveNight(game));
     setDawnTransition(false);
     setSelection("");
     setSecondary("");
@@ -1255,7 +1273,7 @@ export default function App() {
                         </div>
                       )}
                       <div className="actionrow">
-                        {current.ability !== "none" && (current.key !== "witch" || witchInstructionReady) && <button
+                        {current.ability !== "none" && current.key !== "wolves" && (current.key !== "witch" || witchInstructionReady) && <button
                           className="secondary"
                           onClick={record}
                           disabled={
@@ -1269,7 +1287,15 @@ export default function App() {
                         >
                           <Check size={16} /> {current.ability === "kill" ? "Record elimination target" : current.ability === "inspect" ? "Record pointed player" : "Record action"}
                         </button>}
-                        <button className="primary" onClick={advance} disabled={!nightNarrationReady || (current.key === "witch" && !witchInstructionReady)}>
+                        <button
+                          className="primary"
+                          onClick={advance}
+                          disabled={
+                            !nightNarrationReady ||
+                            (current.key === "witch" && !witchInstructionReady) ||
+                            (current.key === "wolves" && !selection)
+                          }
+                        >
                           {g.step === steps.length - 1
                             ? "Resolve night"
                             : "Next role"}{" "}
@@ -1279,6 +1305,10 @@ export default function App() {
                       <small className="muted">
                         {!nightNarrationReady
                           ? "Listen to the required narration before continuing. If it was stopped, use Replay narration above."
+                          : current.key === "wolves"
+                          ? selection
+                            ? "Target selected. You can change it until you continue."
+                            : "Select one target to continue."
                           : current.ability === "none"
                           ? "Night One is recognition only. No wolf target is selected."
                           : hasAction
@@ -1289,7 +1319,7 @@ export default function App() {
                   ) : (
                     <button
                       className="primary"
-                      onClick={beginDawnTransition}
+                      onClick={() => beginDawnTransition()}
                     >
                       Bring on the dawn <Sun size={17} />
                     </button>
