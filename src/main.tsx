@@ -43,6 +43,7 @@ import {
   restoreGame,
 } from "./engine/game";
 import { audioUrl } from "./audio/urls";
+import { roleObjectiveSequence, selectedRoleIds } from "./audio/roleObjectives";
 import { AccessibleModal } from "./components/AccessibleModal";
 import "./style.css";
 type SavedGame = { id: string; name: string; updatedAt: number; game: Game };
@@ -141,7 +142,6 @@ const recommendedDeck = (players: number): Partial<Record<RoleId, number>> => {
   };
 };
 let ambienceFade: number | undefined;
-let activeUtterance: SpeechSynthesisUtterance | null = null;
 let activeNarrationAudio: HTMLAudioElement | null = null;
 let activeNarrationContext: AudioContext | null = null;
 let narrationRun = 0;
@@ -165,7 +165,6 @@ const restoreAmbience = (run: number) => {
   if (run !== narrationRun) return;
   const audio = document.querySelector<HTMLAudioElement>("#ambience-audio");
   fadeAmbience(AMBIENCE_VOLUME);
-  activeUtterance = null;
   if (resumeAmbienceAfterNarration && audio?.paused) {
     void audio.play().catch(() => {
       // Some mobile browsers require another tap after taking audio focus.
@@ -180,47 +179,7 @@ const stopNarration = () => {
   activeNarrationAudio = null;
   void activeNarrationContext?.close();
   activeNarrationContext = null;
-  activeUtterance = null;
-  window.speechSynthesis?.cancel();
   restoreAmbience(run);
-};
-
-const say = (text: string, onComplete?: () => void) => {
-  if (!("speechSynthesis" in window)) {
-    onComplete?.();
-    return;
-  }
-  const audio = document.querySelector<HTMLAudioElement>("#ambience-audio");
-  const run = ++narrationRun;
-  resumeAmbienceAfterNarration = Boolean(audio && !audio.paused);
-  window.speechSynthesis.cancel();
-  fadeAmbience(DUCKED_VOLUME, 60);
-  const utter = new SpeechSynthesisUtterance(text);
-  activeUtterance = utter;
-  utter.rate = 0.83;
-  utter.pitch = 0.75;
-  const voices = window.speechSynthesis.getVoices();
-  utter.voice =
-    voices.find(
-      (voice) =>
-        voice.lang.startsWith("en") &&
-        /Daniel|Samantha|Karen|Moira|Google UK English/i.test(voice.name),
-    ) ||
-    voices.find((voice) => voice.lang.startsWith("en")) ||
-    null;
-  utter.onend = () => {
-    if (activeUtterance === utter) {
-      restoreAmbience(run);
-      onComplete?.();
-    }
-  };
-  utter.onerror = () => {
-    if (activeUtterance === utter) {
-      restoreAmbience(run);
-      onComplete?.();
-    }
-  };
-  window.speechSynthesis.speak(utter);
 };
 
 type NarrationClip = { src: string; text: string };
@@ -242,8 +201,6 @@ const playNarrationClips = (
   activeNarrationAudio = null;
   void activeNarrationContext?.close();
   activeNarrationContext = null;
-  activeUtterance = null;
-  window.speechSynthesis?.cancel();
   resumeAmbienceAfterNarration = Boolean(background && !background.paused);
   fadeAmbience(duckedVolume, duckedVolume === 0 ? 30 : 60);
 
@@ -378,7 +335,7 @@ function AmbienceControl({ phase, paused = false }: { phase: Game["phase"]; paus
       try {
         await audio.play();
         fadeAmbience(
-          activeNarrationAudio || activeUtterance
+          activeNarrationAudio
             ? DUCKED_VOLUME
             : AMBIENCE_VOLUME,
         );
@@ -450,11 +407,13 @@ function AmbienceControl({ phase, paused = false }: { phase: Game["phase"]; paus
 }
 
 function WelcomeScreen({
+  deckRoles,
   showGuide,
   onShowGuide,
   onStartGame,
   onBack,
 }: {
+  deckRoles: Game["deckRoles"];
   showGuide: boolean;
   onShowGuide: () => void;
   onStartGame: () => void;
@@ -471,6 +430,8 @@ function WelcomeScreen({
     "First, deal the physical role cards. Each player secretly checks their card. When night falls, everyone closes their eyes and the moderator follows the prompts while active roles silently choose their targets. At dawn, reveal the victims and discuss what happened. Every surviving player may make their case before the village votes to eliminate one suspect. Continue through night and day until a faction or special role completes its objective.";
   const newPlayerStrategy =
     "If this is your first game, remember that Werewolf is a game of observation, persuasion, and deception. Villagers should listen for contradictions, compare how people vote, and share suspicions without revealing too much too early. Special village roles should use their information carefully, because revealing yourself may make you a target. Werewolves should appear helpful, redirect suspicion, and support one another without making their alliance obvious. Neutral roles have their own objectives, so their behaviour may not benefit either side. You do not need to be certain before speaking. Ask questions, explain your reasoning, and pay attention to how others react. Being eliminated is part of the game, so keep your role secret and enjoy the story as it unfolds.";
+  const guideRoles = selectedRoleIds(deckRoles).map(roleOf);
+  const objectiveSequence = roleObjectiveSequence(deckRoles);
   return (
     <div className="welcome-screen">
       <section className="panel welcome-hero">
@@ -509,7 +470,7 @@ function WelcomeScreen({
       {showGuide && (
         <div className="guide-content">
           <section className="panel">
-            <div className="panelhead"><BookOpen size={18} /><h2>How a game works</h2><button className="smallbtn" onClick={() => playNarrationClips([{ src: "/audio/narration/02-how-to-play.mp3", text: gameExplanation }], gameExplanation)}><Volume2 size={14} /> Listen</button></div>
+            <div className="panelhead"><BookOpen size={18} /><h2>How a game works</h2><button className="smallbtn" onClick={() => playNarrationClips([{ src: "/audio/narration/02-how-to-play.mp3", text: gameExplanation }], gameExplanation, undefined, 0)}><Volume2 size={14} /> Listen</button></div>
             <div className="game-steps">
               <div><span>1</span><strong>Deal the cards</strong><p>Each player secretly checks their physical role card. The app only needs the cards included in the deck.</p></div>
               <div><span>2</span><strong>Play the night</strong><p>Everyone closes their eyes. The moderator follows the app’s prompts while active roles silently choose targets.</p></div>
@@ -525,6 +486,8 @@ function WelcomeScreen({
                   playNarrationClips(
                     [{ src: "/audio/narration/04-new-player-strategy.mp3", text: newPlayerStrategy }],
                     newPlayerStrategy,
+                    undefined,
+                    0,
                   )
                 }
               >
@@ -533,21 +496,14 @@ function WelcomeScreen({
             </div>
           </section>
           <section className="panel">
-            <div className="panelhead"><Shield size={18} /><h2>Role objectives</h2></div>
-            <p className="muted">Your card is secret. Follow its objective without openly revealing your role.</p>
+            <div className="panelhead"><Shield size={18} /><h2>Roles in this game</h2><button className="smallbtn" onClick={() => playNarrationClips(objectiveSequence, objectiveSequence.map((clip) => clip.text).join(" "), undefined, 0)}><Volume2 size={14} /> Play all objectives</button></div>
+            <p className="muted">Only roles included in this game are shown. Each objective plays once, even when the deck contains multiple copies of a card.</p>
             <div className="role-guide-grid">
-              {ROLES.map((role) => (
+              {guideRoles.map((role) => (
                 <article className={`role-guide-card ${role.team}`} key={role.id}>
                   <div><strong>{role.name}</strong><span>{role.team}</span></div>
                   <p>{role.description}</p>
                   <small><b>Objective:</b> {teamObjective[role.team]}</small>
-                  <button
-                    className="role-narrate"
-                    aria-label={`Narrate the ${role.name} objective`}
-                    onClick={() => say(`${role.name}. ${role.description} Your objective is to ${teamObjective[role.team].replace(/^[A-Z]/, (letter) => letter.toLowerCase())}`)}
-                  >
-                    <Volume2 size={13} /> Listen
-                  </button>
                 </article>
               ))}
             </div>
@@ -1404,6 +1360,7 @@ function App() {
         </header>
         {g.phase === "setup" ? setupView !== "setup" ? (
           <WelcomeScreen
+            deckRoles={g.deckRoles}
             showGuide={setupView === "guide"}
             onShowGuide={() => setSetupView(setupView === "guide" ? "intro" : "guide")}
             onStartGame={startGame}
