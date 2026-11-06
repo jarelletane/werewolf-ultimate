@@ -34,10 +34,11 @@ button {
   background: #252c3d;
   color: #eae7ef;
 }
-button:hover:not(:disabled) {
+button:hover:not(:disabled):not([aria-disabled="true"]) {
   filter: brightness(1.17);
 }
-button:disabled {
+button:disabled,
+button[aria-disabled="true"] {
   opacity: 0.4;
   cursor: not-allowed;
 }
@@ -448,6 +449,9 @@ select:focus {
 .roleline .role-requirement {
   color: #b7becb;
   font-weight: 700;
+}
+.role-selection-notice {
+  margin: 12px 0 0;
 }
 .day-theme .roleline.unavailable strong,
 .day-theme .roleline .role-requirement {

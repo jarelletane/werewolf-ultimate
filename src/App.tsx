@@ -86,6 +86,7 @@ export default function App() {
   const [playerCount, setPlayerCount] = useState(5);
   const [counts, setCounts] = useState<Partial<Record<RoleId, number>>>(() => recommendedDeck(5));
   const [setupError, setSetupError] = useState("");
+  const [roleSelectionNotice, setRoleSelectionNotice] = useState("");
   const [selection, setSelection] = useState("");
   const [secondary, setSecondary] = useState("");
   const [witchMode, setWitchMode] = useState<"heal" | "poison">("heal");
@@ -437,6 +438,7 @@ export default function App() {
     setSetupError("");
   }
   function changeRoleCount(role: RoleId, delta: 1 | -1) {
+    setRoleSelectionNotice("");
     setCounts((current) => {
       const next = { ...current };
       const currentValue = next[role] || 0;
@@ -464,6 +466,24 @@ export default function App() {
       next[role] = currentValue + 1;
       return next;
     });
+  }
+  function roleAddBlockReason(role: (typeof ROLES)[number]) {
+    const minimumPlayers = ROLE_MINIMUM_PLAYERS[role.id] || 5;
+    if (minimumPlayers > playerCount) {
+      return `${role.name} requires at least ${minimumPlayers} players.`;
+    }
+    if (role.unique && counts[role.id]) {
+      return `Only one ${role.name} card can be included.`;
+    }
+    if (role.team === "wolf" && selectedWolfCards >= maxWolfCards(playerCount)) {
+      const maximum = maxWolfCards(playerCount);
+      return `A ${playerCount}-player game supports a maximum of ${maximum} wolf-aligned card${maximum === 1 ? "" : "s"}. Remove a wolf-aligned role first.`;
+    }
+    const canReplaceVillager = role.id !== "villager" && (counts.villager || 0) > 0;
+    if (cardTotal >= playerCount && !canReplaceVillager) {
+      return `All ${playerCount} card slots are filled. Remove another role before adding ${role.name}.`;
+    }
+    return "";
   }
   function continueSetup() {
     if (people.length < 5) {
@@ -988,6 +1008,7 @@ export default function App() {
                 {ROLES.map((role) => {
                   const minimumPlayers = ROLE_MINIMUM_PLAYERS[role.id] || 5;
                   const unavailable = minimumPlayers > playerCount;
+                  const addBlockReason = roleAddBlockReason(role);
                   return (
                   <div className={`roleline${unavailable ? " unavailable" : ""}`} key={role.id}>
                     <div>
@@ -1002,20 +1023,24 @@ export default function App() {
                       <span>{counts[role.id] || 0}</span>
                       <button
                         aria-label={`Add ${role.name}`}
-                        disabled={
-                          (!!role.unique && !!counts[role.id]) ||
-                          unavailable ||
-                          (role.team === "wolf" && selectedWolfCards >= maxWolfCards(playerCount)) ||
-                          (role.id === "villager" && cardTotal >= playerCount) ||
-                          (role.id !== "villager" && cardTotal >= playerCount && !(counts.villager || 0))
-                        }
-                        onClick={() => changeRoleCount(role.id, 1)}
+                        aria-disabled={Boolean(addBlockReason)}
+                        title={addBlockReason || `Add ${role.name}`}
+                        onClick={() => {
+                          if (addBlockReason) {
+                            setRoleSelectionNotice(addBlockReason);
+                            return;
+                          }
+                          changeRoleCount(role.id, 1);
+                        }}
                       ><Plus size={13} /></button>
                     </div>
                   </div>
                   );
                 })}
               </div>
+              {roleSelectionNotice && (
+                <p className="error role-selection-notice" role="status">{roleSelectionNotice}</p>
+              )}
             </section>
             <section className="panel settings">
               <div className="panelhead">
