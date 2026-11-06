@@ -57,6 +57,15 @@ export function AmbienceControl({ phase, paused = false }: { phase: Game["phase"
     const unlockAudio = () => {
       const audio = audioRef.current;
       if (audio?.paused) void audio.play().catch(() => undefined);
+      const horn = document.querySelector<HTMLAudioElement>("#day-timer-horn");
+      if (horn?.paused) {
+        horn.volume = 0;
+        void horn.play().then(() => {
+          horn.pause();
+          horn.currentTime = 0;
+          horn.volume = 1;
+        }).catch(() => undefined);
+      }
     };
     document.addEventListener("pointerdown", unlockAudio, { once: true });
     document.addEventListener("keydown", unlockAudio, { once: true });
@@ -70,6 +79,7 @@ export function AmbienceControl({ phase, paused = false }: { phase: Game["phase"
     <div className="ambience-control">
       <audio id="ambience-audio" ref={audioRef} preload="auto" loop onPause={() => setPlaying(false)} onPlay={() => setPlaying(true)} />
       <audio id="morning-rooster" src={audioUrl("/audio/rooster.mp3")} preload="auto" />
+      <audio id="day-timer-horn" src={audioUrl("/audio/day-timer-horn.mp3")} preload="auto" />
       <button
         className={enabled ? "ambience-button active" : "ambience-button"}
         onClick={() => setEnabled((current) => !current)}

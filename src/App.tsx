@@ -384,7 +384,9 @@ export default function App() {
     set({ ...g, ...patch });
   }
   function playDayHorn() {
-    const horn = new Audio(audioUrl("/audio/day-timer-horn.mp3"));
+    const horn = document.querySelector<HTMLAudioElement>("#day-timer-horn")
+      ?? new Audio(audioUrl("/audio/day-timer-horn.mp3"));
+    horn.currentTime = 0;
     horn.volume = 1;
     void horn.play().catch(() => undefined);
   }
@@ -500,6 +502,15 @@ export default function App() {
     setScreen("game");
     const ambience = document.querySelector<HTMLAudioElement>("#ambience-audio");
     if (ambience?.paused) void ambience.play().catch(() => undefined);
+    const horn = document.querySelector<HTMLAudioElement>("#day-timer-horn");
+    if (horn?.paused) {
+      horn.volume = 0;
+      void horn.play().then(() => {
+        horn.pause();
+        horn.currentTime = 0;
+        horn.volume = 1;
+      }).catch(() => undefined);
+    }
     const opening =
       "The village is seated. The cards have been dealt. Your role must remain secret. The game now begins.";
     playNarrationClips(
