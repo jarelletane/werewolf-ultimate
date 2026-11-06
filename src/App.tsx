@@ -383,6 +383,11 @@ export default function App() {
   function update(patch: Partial<Game>) {
     set({ ...g, ...patch });
   }
+  function playDayHorn() {
+    const horn = new Audio(audioUrl("/audio/day-timer-horn.mp3"));
+    horn.volume = 1;
+    void horn.play().catch(() => undefined);
+  }
   function isCriticalThreePlayerNight(game: Game) {
     const living = alive(game).length;
     const remaining = Object.entries(game.deckRoles).filter(
@@ -1119,11 +1124,7 @@ export default function App() {
                       seconds={g.phase === "day" ? g.settings.discussion : g.settings.vote}
                       label={`${g.phase} countdown`}
                       paused={gamePaused || (g.phase === "day" && !roleRevealReady)}
-                      onComplete={g.phase === "day" ? () => {
-                        const horn = new Audio(audioUrl("/audio/day-timer-horn.mp3"));
-                        horn.volume = 1;
-                        void horn.play().catch(() => undefined);
-                      } : undefined}
+                      onComplete={g.phase === "day" ? playDayHorn : undefined}
                     />
                   )}
                 </>
@@ -1359,7 +1360,15 @@ export default function App() {
                         .join(", ")}
                     </p>
                   )}
-                  <button className="primary big" onClick={() => update({ phase: "vote", votes: {} })}>Record round elimination <Vote size={18} /></button>
+                  <button
+                    className="primary big"
+                    onClick={() => {
+                      playDayHorn();
+                      update({ phase: "vote", votes: {} });
+                    }}
+                  >
+                    Record round elimination <Vote size={18} />
+                  </button>
                 </section>
               )}
               {g.phase === "vote" && !g.pendingHunter && !awaitingReveal && (
