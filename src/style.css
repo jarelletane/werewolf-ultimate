@@ -1303,3 +1303,29 @@ select:focus {
     grid-template-columns: 1fr;
   }
 }
+
+.update-notice {
+  position: fixed;
+  z-index: 1000;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  left: max(16px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 620px;
+  margin-left: auto;
+  padding: 14px 16px;
+  color: #f7f1e6;
+  background: #191d2d;
+  border: 1px solid #8c6c39;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px #0008;
+}
+.update-notice span { display: grid; gap: 3px; }
+.update-notice button { min-height: 44px; flex: 0 0 auto; }
+@media (max-width: 600px) { .update-notice { align-items: stretch; flex-direction: column; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

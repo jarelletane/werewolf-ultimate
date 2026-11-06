@@ -30,7 +30,13 @@ Open the Vite URL printed in your terminal. For a production build run `npm run 
 
 This is a **playable MVP with an original, simplified Ultimate-style ruleset**, not an official licensed implementation of any published Ultimate Werewolf edition. Role descriptions in the setup UI define this app's house rules. Alpha Wolf is a standard pack wolf; Priest is a regular villager; Apprentice Seer inherits investigations after Seer's death. The Witch can manually choose a healing target (no automatic revelation of the wolf target), with one use per potion. The first-night Cupid can link two lovers. A Hunter elimination pauses the game for a retaliation choice. Silencer is wolf-aligned but cannot vote in the wolf kill action unless another pack wolf is present. Serial Killer prevents standard faction victory while alive. Neutral role victory conditions are simplified.
 
-This version is single-device and moderator-only. There is no networked role distribution, player voting, or authentication. Narration uses the browser's built-in SpeechSynthesis voices and availability varies by browser. Timers run in the current tab and do not auto-advance actions. Saved games and progress are stored in localStorage, but the app is not yet an installable/offline-cached PWA.
+This version is single-device and moderator-only. There is no networked role distribution, player voting, or authentication. Recorded narration falls back to the browser's SpeechSynthesis voices when a clip cannot play, so voice availability varies by browser. Timers do not auto-advance actions. Saved games and progress are stored in localStorage and validated when restored.
+
+## Install and offline use
+
+The production build is an installable PWA. Deploy `dist/` over HTTPS, open it once while online, and use the browser's Add to Home Screen or Install command. The service worker caches the app shell and bundled audio for offline games. Updates wait for moderator confirmation and never reload an active session automatically.
+
+On iOS Safari, audio still requires an initial user gesture and the operating system may suspend playback when the app is backgrounded. On Android Chrome, battery-saving policies can likewise interrupt audio. Visible narration captions and deadline-based timers keep gameplay usable after returning to the app.
 
 ## Structure
 
@@ -40,4 +46,8 @@ This version is single-device and moderator-only. There is no networked role dis
 
 ## Next iterations
 
-Add configurable house-rule variants, proper offline PWA caching, export/import of games, and broader scenario tests for advanced roles.
+Add configurable house-rule variants, export/import of games, and broader scenario tests for advanced roles.
+
+## Privacy and asset licensing
+
+The app has no backend, accounts, analytics, or advertising. Game names and progress remain in the browser's local storage. Before public launch, verify and document the redistribution rights for every narration, ambience, music, sound-effect, artwork, and font asset. The project name and role text describe an original house ruleset and should not be presented as an official licensed edition.

@@ -60,7 +60,7 @@ Record each item as a separate MP3 file. Where a **MODERATOR PAUSE** is shown, t
 
 ## Night One — Detective (optional)
 
-- [ ] `28-detective-first-choice.mp3`
+- [x] `28-detective-first-choice.mp3`
   - “Detective, open your eyes. Point to one player whose identity you wish to investigate.”
   - **MODERATOR PAUSE:** Let the Detective point, then respond silently.
 

@@ -25,6 +25,20 @@ export type Action={actor:string;type:Ability;target:string;secondary?:string};
 export type Phase='setup'|'night'|'day'|'vote'|'ended';
 export type Game={players:Player[];phase:Phase;round:number;step:number;actions:Action[];votes:Record<string,string>;history:string[];potions:{heal:boolean;poison:boolean};lovers:[string,string]|null;silenced:string[];winner:string|null;pendingHunter:string|null;nightResult:string[];cardsOnly:boolean;deckRoles:Partial<Record<RoleId,number>>;tieCandidates:string[];isRevote:boolean;settings:{discussion:number;night:number;vote:number;revealRoles:boolean}};
 export const initialGame=():Game=>({players:[],phase:'setup',round:1,step:0,actions:[],votes:{},history:[],potions:{heal:true,poison:true},lovers:null,silenced:[],winner:null,pendingHunter:null,nightResult:[],cardsOnly:false,deckRoles:{},tieCandidates:[],isRevote:false,settings:{discussion:300,night:45,vote:90,revealRoles:false}});
+const roleIds=new Set<string>(ROLES.map(role=>role.id));
+const phases=new Set<Phase>(['setup','night','day','vote','ended']);
+export function restoreGame(value:unknown):Game{
+ const fallback=initialGame();
+ if(!value||typeof value!=='object')return fallback;
+ const raw=value as Partial<Game>;
+ const players=Array.isArray(raw.players)?raw.players.filter((player):player is Player=>Boolean(player&&typeof player.id==='string'&&typeof player.name==='string'&&typeof player.alive==='boolean')).map(player=>({...player,role:player.role&&roleIds.has(player.role)?player.role:undefined,revealedRole:player.revealedRole&&roleIds.has(player.revealedRole)?player.revealedRole:undefined})):[];
+ const playerIds=new Set(players.map(player=>player.id));
+ const deckRoles:Game['deckRoles']={};
+ if(raw.deckRoles&&typeof raw.deckRoles==='object')for(const [role,count] of Object.entries(raw.deckRoles))if(roleIds.has(role)&&typeof count==='number'&&Number.isInteger(count)&&count>=0)deckRoles[role as RoleId]=count;
+ const settings=raw.settings&&typeof raw.settings==='object'?raw.settings as Partial<Game['settings']>:{};
+ return {...fallback,...raw,players,phase:raw.phase&&phases.has(raw.phase)?raw.phase:'setup',round:Number.isInteger(raw.round)&&Number(raw.round)>0?Number(raw.round):1,step:Number.isInteger(raw.step)&&Number(raw.step)>=0?Number(raw.step):0,actions:Array.isArray(raw.actions)?raw.actions.filter((action):action is Action=>Boolean(action&&typeof action.actor==='string'&&typeof action.target==='string'&&['kill','inspect','protect','heal','poison','silence','link','none'].includes(action.type)&&playerIds.has(action.target)&&(!action.secondary||playerIds.has(action.secondary)))):[],votes:raw.votes&&typeof raw.votes==='object'?Object.fromEntries(Object.entries(raw.votes).filter(([voter,target])=>playerIds.has(voter)&&typeof target==='string'&&playerIds.has(target))):{},history:Array.isArray(raw.history)?raw.history.filter((item):item is string=>typeof item==='string'):[],potions:{heal:raw.potions?.heal!==false,poison:raw.potions?.poison!==false},lovers:Array.isArray(raw.lovers)&&raw.lovers.length===2&&raw.lovers.every(id=>typeof id==='string'&&playerIds.has(id))?raw.lovers as [string,string]:null,silenced:Array.isArray(raw.silenced)?raw.silenced.filter((id):id is string=>typeof id==='string'&&playerIds.has(id)):[],winner:typeof raw.winner==='string'?raw.winner:null,pendingHunter:typeof raw.pendingHunter==='string'&&playerIds.has(raw.pendingHunter)?raw.pendingHunter:null,nightResult:Array.isArray(raw.nightResult)?raw.nightResult.filter((item):item is string=>typeof item==='string'):[],cardsOnly:raw.cardsOnly===true,deckRoles,tieCandidates:Array.isArray(raw.tieCandidates)?raw.tieCandidates.filter((id):id is string=>typeof id==='string'&&playerIds.has(id)):[],isRevote:raw.isRevote===true,settings:{discussion:validDuration(settings.discussion,fallback.settings.discussion),night:validDuration(settings.night,fallback.settings.night),vote:validDuration(settings.vote,fallback.settings.vote),revealRoles:settings.revealRoles===true}};
+}
+function validDuration(value:unknown,fallback:number){return typeof value==='number'&&Number.isFinite(value)&&value>=0&&value<=86400?value:fallback}
 export const roleOf=(id:RoleId)=>ROLES.find(r=>r.id===id)!;
 export const alive=(g:Game)=>g.players.filter(p=>p.alive);
 export function nightSteps(g:Game):{key:string;name:string;ability:Ability;actors:Player[];prompt:string}[]{
@@ -60,11 +74,11 @@ export function nightSteps(g:Game):{key:string;name:string;ability:Ability;actor
 }
 export function checkWinner(g:Game):string|null{
  if(g.cardsOnly)return null;
- const a=alive(g),wolves=a.filter(p=>p.role&&roleOf(p.role).team==='wolf').length,village=a.filter(p=>p.role&&roleOf(p.role).team==='village').length,serial=a.filter(p=>p.role==='serial').length;
+ const a=alive(g),wolves=a.filter(p=>p.role&&roleOf(p.role).team==='wolf').length,serial=a.filter(p=>p.role==='serial').length;
  if(serial===1&&a.length===1)return 'Serial Killer';
  if(serial>0)return null;
  if(wolves===0)return 'Village';
- if(wolves>=village)return 'Werewolves';
+ if(wolves>=a.length-wolves)return 'Werewolves';
  return null;
 }
 export function inferCardsOnlyWinner(g:Game):'Village'|'Werewolves'|'Serial Killer'|null{

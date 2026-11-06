@@ -40,6 +40,7 @@ import {
   checkWinner,
   inferCardsOnlyWinner,
   Action,
+  restoreGame,
 } from "./engine/game";
 import "./style.css";
 type SavedGame = { id: string; name: string; updatedAt: number; game: Game };
@@ -91,7 +92,22 @@ const useGame = create<Store>()(
         })),
       reset: () => set({ game: initialGame(), currentId: null }),
     }),
-    { name: "werewolf-ultimate-v2" },
+    {
+      name: "werewolf-ultimate-v2",
+      version: 1,
+      migrate: (persisted) => {
+        const state = (persisted && typeof persisted === "object" ? persisted : {}) as Partial<Store>;
+        const saves = Array.isArray(state.saves)
+          ? state.saves.filter((save): save is SavedGame => Boolean(save && typeof save.id === "string" && typeof save.name === "string")).map((save) => ({ ...save, updatedAt: typeof save.updatedAt === "number" ? save.updatedAt : Date.now(), game: restoreGame(save.game) }))
+          : [];
+        const current = saves.find((save) => save.id === state.currentId);
+        return { ...state, saves, currentId: current?.id ?? null, game: restoreGame(current?.game ?? state.game) };
+      },
+      merge: (persisted, current) => {
+        const state = (persisted ?? {}) as Partial<Store>;
+        return { ...current, ...state, game: restoreGame(state.game), saves: Array.isArray(state.saves) ? state.saves.map((save) => ({ ...save, game: restoreGame(save.game) })) : [] };
+      },
+    },
   ),
 );
 
@@ -209,13 +225,13 @@ type NarrationClip = { src: string; text: string };
 
 const playNarrationClips = (
   clips: NarrationClip[],
-  fallbackText: string,
+  _fallbackText: string,
   onComplete?: () => void,
   duckedVolume = DUCKED_VOLUME,
   playbackGain = 1,
 ) => {
   if (clips.length === 0) {
-    say(fallbackText, onComplete);
+    onComplete?.();
     return;
   }
   const background = document.querySelector<HTMLAudioElement>("#ambience-audio");
@@ -240,6 +256,16 @@ const playNarrationClips = (
       return;
     }
     const recording = new Audio(clips[index].src);
+    let playbackFailed = false;
+    const handlePlaybackFailure = () => {
+      if (playbackFailed || run !== narrationRun) return;
+      playbackFailed = true;
+      activeNarrationAudio = null;
+      void activeNarrationContext?.close();
+      activeNarrationContext = null;
+      restoreAmbience(run);
+      onComplete?.();
+    };
     activeNarrationAudio = recording;
     recording.preload = "auto";
     recording.volume = 1;
@@ -253,18 +279,8 @@ const playNarrationClips = (
       void context.resume();
     }
     recording.onended = () => playAt(index + 1);
-    recording.onerror = () => {
-      activeNarrationAudio = null;
-      void activeNarrationContext?.close();
-      activeNarrationContext = null;
-      say(clips.slice(index).map((clip) => clip.text).join(" "), onComplete);
-    };
-    void recording.play().catch(() => {
-      activeNarrationAudio = null;
-      void activeNarrationContext?.close();
-      activeNarrationContext = null;
-      say(clips.slice(index).map((clip) => clip.text).join(" "), onComplete);
-    });
+    recording.onerror = handlePlaybackFailure;
+    void recording.play().catch(handlePlaybackFailure);
   };
 
   playAt(0);
@@ -276,16 +292,25 @@ function Timer({ seconds, label, paused = false }: { seconds: number; label: str
     setRemaining(seconds);
     setRunning(true);
   }, [seconds, label]);
+  const deadline = useRef<number | null>(null);
   useEffect(() => {
-    if (!running || paused) return;
-    const t = setInterval(() => {
-      setRemaining((current) => {
-        const next = Math.max(0, current - 1);
-        if (next === 0) setRunning(false);
-        return next;
-      });
-    }, 1000);
-    return () => clearInterval(t);
+    if (!running || paused) {
+      deadline.current = null;
+      return;
+    }
+    deadline.current = Date.now() + remaining * 1000;
+    const tick = () => {
+      if (deadline.current === null) return;
+      const next = Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000));
+      setRemaining(next);
+      if (next === 0) setRunning(false);
+    };
+    const t = setInterval(tick, 250);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", tick);
+    };
   }, [running, label, paused]);
   const format = (n: number) =>
     `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
@@ -307,11 +332,15 @@ function Timer({ seconds, label, paused = false }: { seconds: number; label: str
           onClick={() => {
             setRunning(true);
             setRemaining(seconds);
+            deadline.current = Date.now() + seconds * 1000;
           }}
         >
           <RotateCcw size={15} /> Reset
         </button>
-        <button onClick={() => setRemaining((r) => r + 30)}>+30s</button>
+        <button onClick={() => {
+          setRemaining((r) => r + 30);
+          if (deadline.current !== null) deadline.current += 30_000;
+        }}>+30s</button>
       </div>
     </div>
   );
@@ -650,7 +679,7 @@ function App() {
           : g.phase === "ended"
             ? `The final bell tolls. ${g.winner} have won the game.`
             : "A darkness gathers over the village.";
-  const narrationCanPlay = true;
+  const narrationCanPlay = !(g.phase === "night" && !current);
   const dawnInstruction =
     "Everyone, keep your eyes closed. The night is ending. Wait for the morning call before opening your eyes.";
   const narrationClips: NarrationClip[] = (() => {
@@ -713,7 +742,7 @@ function App() {
         });
       } else if (current.key === "detective") {
         clips.push({
-          src: "/audio/narration/50-detective-investigate.mp3",
+          src: `/audio/narration/${g.round === 1 ? "28-detective-first-choice" : "50-detective-investigate"}.mp3`,
           text: "Detective, open your eyes. Point to one player whose identity you wish to investigate.",
         });
       } else if (current.key === "bodyguard") {
@@ -2138,8 +2167,40 @@ function App() {
     </div>
   );
 }
+
+function ServiceWorkerUpdate() {
+  const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
+  useEffect(() => {
+    if (!("serviceWorker" in navigator) || !import.meta.env.PROD) return;
+    let registration: ServiceWorkerRegistration | undefined;
+    const watch = (worker: ServiceWorker | null) => {
+      if (!worker) return;
+      worker.addEventListener("statechange", () => {
+        if (worker.state === "installed" && navigator.serviceWorker.controller) setWaiting(worker);
+      });
+    };
+    void navigator.serviceWorker.register("./sw.js").then((result) => {
+      registration = result;
+      if (result.waiting) setWaiting(result.waiting);
+      watch(result.installing);
+      result.addEventListener("updatefound", () => watch(result.installing));
+    }).catch(() => undefined);
+    const check = () => void registration?.update();
+    window.addEventListener("online", check);
+    return () => window.removeEventListener("online", check);
+  }, []);
+  if (!waiting) return null;
+  return <aside className="update-notice" role="status">
+    <span><strong>Update ready</strong> Apply it when the current game is safely paused.</span>
+    <button onClick={() => {
+      waiting.postMessage({ type: "SKIP_WAITING" });
+      setWaiting(null);
+    }}>Apply on next launch</button>
+  </aside>;
+}
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />
+    <ServiceWorkerUpdate />
   </React.StrictMode>,
 );

@@ -1,0 +1,11 @@
+[
+  "audio/day-ambience.mp3", "audio/horror-ambience.mp3", "audio/night-ambience.mp3", "audio/rooster.mp3",
+  "audio/narration/01-welcome.mp3", "audio/narration/02-how-to-play.mp3", "audio/narration/03-game-begins.mp3",
+  "audio/narration/10-night-one-begins.mp3", "audio/narration/11-night-begins.mp3",
+  "audio/narration/20-wolves-recognise.mp3", "audio/narration/21-wolves-close-first-night.mp3", "audio/narration/22-seer-first-choice.mp3", "audio/narration/23-seer-close.mp3", "audio/narration/24-cupid-choice.mp3", "audio/narration/25-cupid-close.mp3", "audio/narration/26-lovers-recognise.mp3", "audio/narration/27-lovers-close.mp3", "audio/narration/28-detective-first-choice.mp3", "audio/narration/29-detective-close.mp3",
+  "audio/narration/30-doctor-recognition.mp3", "audio/narration/31-doctor-close-first-night.mp3", "audio/narration/32-witch-recognition.mp3", "audio/narration/33-witch-close-first-night.mp3",
+  "audio/narration/40-wolves-hunt.mp3", "audio/narration/41-wolves-close.mp3", "audio/narration/42-seer-investigate.mp3", "audio/narration/43-doctor-protect.mp3", "audio/narration/44-doctor-close.mp3", "audio/narration/45-witch-awaken.mp3", "audio/narration/46-witch-action.mp3", "audio/narration/47-witch-close.mp3", "audio/narration/48-serial-killer-action.mp3", "audio/narration/49-serial-killer-close.mp3",
+  "audio/narration/50-detective-investigate.mp3", "audio/narration/51-bodyguard-protect.mp3", "audio/narration/52-bodyguard-close.mp3", "audio/narration/53-silencer-action.mp3", "audio/narration/54-silencer-close.mp3", "audio/narration/55-hunter-final-shot.mp3",
+  "audio/narration/60-night-ending.mp3", "audio/narration/61-first-morning.mp3", "audio/narration/62-morning-no-deaths.mp3", "audio/narration/63-discussion-begins.mp3", "audio/narration/64-voting-begins.mp3", "audio/narration/65-murder-reveal.mp3",
+  "audio/narration/70-village-victory.mp3", "audio/narration/71-werewolf-victory.mp3", "audio/narration/72-tied-vote.mp3", "audio/narration/73-no-elimination.mp3", "audio/narration/74-game-ended.mp3", "audio/narration/75-jester-victory.mp3", "audio/narration/76-serial-killer-victory.mp3", "audio/narration/77-final-chance.mp3"
+]
