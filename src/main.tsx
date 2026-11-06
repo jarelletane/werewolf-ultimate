@@ -164,6 +164,7 @@ const fadeAmbience = (target: number, duration = 360) => {
 const restoreAmbience = (run: number) => {
   if (run !== narrationRun) return;
   const audio = document.querySelector<HTMLAudioElement>("#ambience-audio");
+  if (audio) audio.muted = false;
   fadeAmbience(AMBIENCE_VOLUME);
   if (resumeAmbienceAfterNarration && audio?.paused) {
     void audio.play().catch(() => {
@@ -202,6 +203,7 @@ const playNarrationClips = (
   void activeNarrationContext?.close();
   activeNarrationContext = null;
   resumeAmbienceAfterNarration = Boolean(background && !background.paused);
+  if (background) background.muted = true;
   fadeAmbience(duckedVolume, duckedVolume === 0 ? 30 : 60);
 
   const playAt = (index: number) => {
