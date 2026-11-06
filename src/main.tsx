@@ -115,7 +115,7 @@ const useGame = create<Store>()(
 );
 
 const AMBIENCE_VOLUME = 0.18;
-const DUCKED_VOLUME = 0.0015;
+const DUCKED_VOLUME = AMBIENCE_VOLUME * 0.3;
 const CRITICAL_NIGHT_NARRATION =
   "Three souls remain, and a Werewolf still walks among you. If the village enters the night and the hunt succeeds, the Werewolf may seize control. This may be your final chance.";
 const ROLE_MINIMUM_PLAYERS: Partial<Record<RoleId, number>> = {
@@ -164,7 +164,6 @@ const fadeAmbience = (target: number, duration = 360) => {
 const restoreAmbience = (run: number) => {
   if (run !== narrationRun) return;
   const audio = document.querySelector<HTMLAudioElement>("#ambience-audio");
-  if (audio) audio.muted = false;
   fadeAmbience(AMBIENCE_VOLUME);
   if (resumeAmbienceAfterNarration && audio?.paused) {
     void audio.play().catch(() => {
@@ -203,7 +202,6 @@ const playNarrationClips = (
   void activeNarrationContext?.close();
   activeNarrationContext = null;
   resumeAmbienceAfterNarration = Boolean(background && !background.paused);
-  if (background) background.muted = true;
   fadeAmbience(duckedVolume, duckedVolume === 0 ? 30 : 60);
 
   const playAt = (index: number) => {
@@ -452,7 +450,7 @@ function WelcomeScreen({
               [{ src: "/audio/narration/01-welcome.mp3", text: introduction }],
               introduction,
               undefined,
-              0,
+              DUCKED_VOLUME,
               2.4,
             )
           }
@@ -472,7 +470,7 @@ function WelcomeScreen({
       {showGuide && (
         <div className="guide-content">
           <section className="panel">
-            <div className="panelhead"><BookOpen size={18} /><h2>How a game works</h2><button className="smallbtn" onClick={() => playNarrationClips([{ src: "/audio/narration/02-how-to-play.mp3", text: gameExplanation }], gameExplanation, undefined, 0)}><Volume2 size={14} /> Listen</button></div>
+            <div className="panelhead"><BookOpen size={18} /><h2>How a game works</h2><button className="smallbtn" onClick={() => playNarrationClips([{ src: "/audio/narration/02-how-to-play.mp3", text: gameExplanation }], gameExplanation, undefined, DUCKED_VOLUME)}><Volume2 size={14} /> Listen</button></div>
             <div className="game-steps">
               <div><span>1</span><strong>Deal the cards</strong><p>Each player secretly checks their physical role card. The app only needs the cards included in the deck.</p></div>
               <div><span>2</span><strong>Play the night</strong><p>Everyone closes their eyes. The moderator follows the app’s prompts while active roles silently choose targets.</p></div>
@@ -489,7 +487,7 @@ function WelcomeScreen({
                     [{ src: "/audio/narration/04-new-player-strategy.mp3", text: newPlayerStrategy }],
                     newPlayerStrategy,
                     undefined,
-                    0,
+                    DUCKED_VOLUME,
                   )
                 }
               >
@@ -498,7 +496,7 @@ function WelcomeScreen({
             </div>
           </section>
           <section className="panel">
-            <div className="panelhead"><Shield size={18} /><h2>Roles in this game</h2><button className="smallbtn" onClick={() => playNarrationClips(objectiveSequence, objectiveSequence.map((clip) => clip.text).join(" "), undefined, 0)}><Volume2 size={14} /> Play all objectives</button></div>
+            <div className="panelhead"><Shield size={18} /><h2>Roles in this game</h2><button className="smallbtn" onClick={() => playNarrationClips(objectiveSequence, objectiveSequence.map((clip) => clip.text).join(" "), undefined, DUCKED_VOLUME)}><Volume2 size={14} /> Play all objectives</button></div>
             <p className="muted">Only roles included in this game are shown. Each objective plays once, even when the deck contains multiple copies of a card.</p>
             <div className="role-guide-grid">
               {guideRoles.map((role) => (
