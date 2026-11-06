@@ -205,6 +205,13 @@ const playNarrationClips = (
   activeNarrationContext = null;
   resumeAmbienceAfterNarration = Boolean(background && !background.paused);
   fadeAmbience(duckedVolume, duckedVolume === 0 ? 30 : 60);
+  const narrationContext = playbackGain > 1 && "AudioContext" in window
+    ? new AudioContext()
+    : null;
+  if (narrationContext) {
+    activeNarrationContext = narrationContext;
+    void narrationContext.resume();
+  }
 
   const playAt = (index: number) => {
     if (run !== narrationRun) return;
@@ -216,30 +223,22 @@ const playNarrationClips = (
       onComplete?.();
       return;
     }
-    void activeNarrationContext?.close();
-    activeNarrationContext = null;
     const recording = new Audio(audioUrl(clips[index].src));
     let playbackFailed = false;
     const handlePlaybackFailure = () => {
       if (playbackFailed || run !== narrationRun) return;
       playbackFailed = true;
       activeNarrationAudio = null;
-      void activeNarrationContext?.close();
-      activeNarrationContext = null;
-      restoreAmbience(run);
-      onComplete?.();
+      playAt(index + 1);
     };
     activeNarrationAudio = recording;
     recording.preload = "auto";
     recording.volume = 1;
-    if (playbackGain > 1 && "AudioContext" in window) {
-      const context = new AudioContext();
-      const source = context.createMediaElementSource(recording);
-      const gain = context.createGain();
+    if (narrationContext) {
+      const source = narrationContext.createMediaElementSource(recording);
+      const gain = narrationContext.createGain();
       gain.gain.value = playbackGain;
-      source.connect(gain).connect(context.destination);
-      activeNarrationContext = context;
-      void context.resume();
+      source.connect(gain).connect(narrationContext.destination);
     }
     recording.onended = () => playAt(index + 1);
     recording.onerror = handlePlaybackFailure;
