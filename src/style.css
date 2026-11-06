@@ -439,6 +439,20 @@ select:focus {
   margin-top: 5px;
   line-height: 1.4;
 }
+.roleline.unavailable {
+  opacity: 0.52;
+}
+.roleline.unavailable strong {
+  color: #8b95a3;
+}
+.roleline .role-requirement {
+  color: #b7becb;
+  font-weight: 700;
+}
+.day-theme .roleline.unavailable strong,
+.day-theme .roleline .role-requirement {
+  color: #827b70;
+}
 .counter {
   display: flex;
   align-items: center;

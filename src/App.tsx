@@ -985,16 +985,17 @@ export default function App() {
                 Recommended balance: up to {maxWolfCards(playerCount)} wolf-aligned card{maxWolfCards(playerCount) === 1 ? "" : "s"} for {playerCount} players. Changing the player count resets this deck to a balanced suggestion.
               </p>
               <div className="rolelist">
-                {ROLES.map((role) => (
-                  <div className="roleline" key={role.id}>
+                {ROLES.map((role) => {
+                  const minimumPlayers = ROLE_MINIMUM_PLAYERS[role.id] || 5;
+                  const unavailable = minimumPlayers > playerCount;
+                  return (
+                  <div className={`roleline${unavailable ? " unavailable" : ""}`} key={role.id}>
                     <div>
                       <strong>{role.name}</strong>
-                      <small>
-                        {role.description}
-                        {(ROLE_MINIMUM_PLAYERS[role.id] || 5) > playerCount
-                          ? ` Available from ${ROLE_MINIMUM_PLAYERS[role.id]} players.`
-                          : ""}
-                      </small>
+                      <small>{role.description}</small>
+                      {unavailable && (
+                        <small className="role-requirement">Requires {minimumPlayers} players</small>
+                      )}
                     </div>
                     <div className="counter">
                       <button aria-label={`Remove ${role.name}`} disabled={role.id === "villager" || !(counts[role.id] || 0)} onClick={() => changeRoleCount(role.id, -1)}><Minus size={13} /></button>
@@ -1003,7 +1004,7 @@ export default function App() {
                         aria-label={`Add ${role.name}`}
                         disabled={
                           (!!role.unique && !!counts[role.id]) ||
-                          (ROLE_MINIMUM_PLAYERS[role.id] || 5) > playerCount ||
+                          unavailable ||
                           (role.team === "wolf" && selectedWolfCards >= maxWolfCards(playerCount)) ||
                           (role.id === "villager" && cardTotal >= playerCount) ||
                           (role.id !== "villager" && cardTotal >= playerCount && !(counts.villager || 0))
@@ -1012,7 +1013,8 @@ export default function App() {
                       ><Plus size={13} /></button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
             <section className="panel settings">
