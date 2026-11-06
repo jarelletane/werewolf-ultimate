@@ -324,6 +324,7 @@ export default function App() {
                               }
                 : null;
   useEffect(() => {
+    if (gamePaused || suggestedWinner) return;
     if (awaitingReveal && g.phase !== "day") return;
     const prior = previousPhase.current;
     previousPhase.current = g.phase;
@@ -353,8 +354,9 @@ export default function App() {
     rooster.onended = beginMorning;
     rooster.onerror = beginMorning;
     void rooster.play().catch(beginMorning);
-  }, [g.phase, awaitingReveal?.id]);
+  }, [g.phase, awaitingReveal?.id, gamePaused, suggestedWinner]);
   useEffect(() => {
+    if (gamePaused || suggestedWinner) return;
     if (awaitingReveal) return;
     if (g.phase !== "night" && g.phase !== "vote") return;
     if (skipNextAutomaticNarration.current) {
@@ -372,15 +374,15 @@ export default function App() {
       g.phase === "night" ? () => setNightNarrationReady(true) : undefined,
     );
     setVoices(true);
-  }, [g.phase, g.round, g.step, awaitingReveal?.id]);
+  }, [g.phase, g.round, g.step, awaitingReveal?.id, gamePaused, suggestedWinner]);
   useEffect(() => {
-    if (!pendingCriticalNight) return;
+    if (!pendingCriticalNight || gamePaused || suggestedWinner) return;
     playNarrationClips(
       [{ src: "/audio/narration/77-final-chance.mp3", text: CRITICAL_NIGHT_NARRATION }],
       CRITICAL_NIGHT_NARRATION,
     );
     setVoices(true);
-  }, [pendingCriticalNight]);
+  }, [pendingCriticalNight, gamePaused, suggestedWinner]);
   function update(patch: Partial<Game>) {
     set({ ...g, ...patch });
   }
@@ -657,7 +659,14 @@ export default function App() {
       set(nextGame);
     }
     if (!jesterWon && !nextGame.pendingHunter) {
-      setSuggestedWinner(inferCardsOnlyWinner(nextGame));
+      const inferredWinner = inferCardsOnlyWinner(nextGame);
+      if (inferredWinner) {
+        stopNarration();
+        document.querySelector<HTMLAudioElement>("#morning-rooster")?.pause();
+        document.querySelector<HTMLAudioElement>("#ambience-audio")?.pause();
+        setGamePaused(true);
+        setSuggestedWinner(inferredWinner);
+      }
     }
     if (eliminatedRole === "hunter") {
       const hunterNarration =
@@ -1555,7 +1564,13 @@ export default function App() {
         </AccessibleModal>
       )}
       {suggestedWinner && (
-        <AccessibleModal labelledBy="winner-check-title" onDismiss={() => setSuggestedWinner(null)}>
+        <AccessibleModal
+          labelledBy="winner-check-title"
+          onDismiss={() => {
+            setSuggestedWinner(null);
+            setGamePaused(false);
+          }}
+        >
           <div className="modal inferred-winner">
             <Trophy size={30} />
             <div className="eyebrow">Victory condition reached</div>
@@ -1580,7 +1595,13 @@ export default function App() {
               <button className="primary" onClick={() => declareWinner(suggestedWinner)}>
                 <Volume2 size={16} /> Confirm and play ending
               </button>
-              <button className="secondary" onClick={() => setSuggestedWinner(null)}>
+              <button
+                className="secondary"
+                onClick={() => {
+                  setSuggestedWinner(null);
+                  setGamePaused(false);
+                }}
+              >
                 Keep game open
               </button>
             </div>
@@ -1678,7 +1699,7 @@ export default function App() {
           </div>
         </AccessibleModal>
       )}
-      {gamePaused && (
+      {gamePaused && !suggestedWinner && (
         <AccessibleModal className="pause-overlay" labelledBy="pause-title" onDismiss={() => setGamePaused(false)}>
           <div className="modal pause-modal">
             <Pause size={32} />

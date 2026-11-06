@@ -1,4 +1,4 @@
-const CACHE = "werewolf-ultimate-v1";
+const CACHE = "werewolf-ultimate-v2";
 const scopeUrl = (path = "./") => new URL(path, self.registration.scope).toString();
 
 self.addEventListener("install", (event) => {
