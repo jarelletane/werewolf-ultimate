@@ -11,7 +11,7 @@ export function AmbienceControl({ phase, paused = false }: { phase: Game["phase"
   const source = phase === "night"
     ? audioUrl("/audio/night-ambience.mp3")
     : phase === "day" || phase === "vote"
-      ? audioUrl("/audio/day-ambience.mp3?v=forest-30746")
+      ? audioUrl("/audio/day-ambience.mp3?v=clock-405471")
       : audioUrl("/audio/horror-ambience.mp3");
 
   useEffect(() => {

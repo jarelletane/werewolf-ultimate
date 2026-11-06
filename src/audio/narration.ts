@@ -2,7 +2,7 @@ import { audioUrl } from "./urls";
 
 export const AMBIENCE_VOLUME = 0.18;
 export const DUCKED_VOLUME = AMBIENCE_VOLUME * 0.1;
-const NARRATION_GAIN = 2.4;
+const NARRATION_GAIN = 3;
 
 export type NarrationClip = { src: string; text: string };
 
