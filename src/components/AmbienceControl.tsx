@@ -32,7 +32,7 @@ export function AmbienceControl({ phase, paused = false }: { phase: Game["phase"
       }
       try {
         await audio.play();
-        fadeAmbience(isNarrationPlaying() ? DUCKED_VOLUME : AMBIENCE_VOLUME);
+        fadeAmbience(isNarrationPlaying() ? (phase === "day" || phase === "vote" ? 0 : DUCKED_VOLUME) : AMBIENCE_VOLUME);
       } catch {
         setPlaying(false);
       }

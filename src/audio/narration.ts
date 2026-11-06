@@ -62,11 +62,14 @@ export const playNarrationClips = (
     return;
   }
   const background = document.querySelector<HTMLAudioElement>("#ambience-audio");
+  const narrationAmbienceVolume = background?.currentSrc.includes("day-ambience.mp3")
+    ? 0
+    : duckedVolume;
   const run = ++narrationRun;
   activeNarrationAudio?.pause();
   activeNarrationAudio = null;
   resumeAmbienceAfterNarration = Boolean(background && !background.paused);
-  fadeAmbience(duckedVolume, 60);
+  fadeAmbience(narrationAmbienceVolume, 60);
   const narrationContext = playbackGain > 1 ? unlockNarrationAudio() : null;
 
   const playAt = (index: number) => {
