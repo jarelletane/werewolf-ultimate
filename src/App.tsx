@@ -37,7 +37,7 @@ import {
   inferCardsOnlyWinner,
   Action,
 } from "./engine/game";
-import { AMBIENCE_VOLUME, fadeAmbience, NarrationClip, playNarrationClips, stopNarration, unlockNarrationAudio } from "./audio/narration";
+import { NarrationClip, playNarrationClips, stopNarration, unlockNarrationAudio } from "./audio/narration";
 import { AccessibleModal } from "./components/AccessibleModal";
 import { CountdownTimer } from "./components/CountdownTimer";
 import { AmbienceControl } from "./components/AmbienceControl";
@@ -330,20 +330,16 @@ export default function App() {
     previousPhase.current = g.phase;
     if (prior !== "night" || g.phase !== "day") return;
     const rooster = document.querySelector<HTMLAudioElement>("#morning-rooster");
-    const ambience = document.querySelector<HTMLAudioElement>("#ambience-audio");
     if (!rooster) {
       setRoleRevealReady(true);
       return;
     }
-    const restoreBackground = Boolean(ambience && !ambience.paused);
-    if (restoreBackground) fadeAmbience(0.035);
     rooster.currentTime = 0;
     rooster.volume = 0.82;
     let morningStarted = false;
     const beginMorning = () => {
       if (morningStarted) return;
       morningStarted = true;
-      if (restoreBackground) fadeAmbience(AMBIENCE_VOLUME);
       if (narrationCanPlay) {
         playNarrationClips(narrationClips, narration, () => setRoleRevealReady(true));
         setVoices(true);
@@ -837,7 +833,10 @@ export default function App() {
             </p>
           </div>
           <div className="header-actions">
-            <AmbienceControl phase={g.phase} paused={gamePaused} />
+            <AmbienceControl
+              phase={g.phase}
+              paused={gamePaused || (g.phase === "day" && !roleRevealReady)}
+            />
             <div className="phasebadge">
               {g.phase === "night" ? (
                 <Moon size={16} />
@@ -1118,7 +1117,7 @@ export default function App() {
                     <CountdownTimer
                       seconds={g.phase === "day" ? g.settings.discussion : g.settings.vote}
                       label={`${g.phase} countdown`}
-                      paused={gamePaused}
+                      paused={gamePaused || (g.phase === "day" && !roleRevealReady)}
                     />
                   )}
                 </>
