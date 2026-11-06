@@ -1,16 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
 
-type Props = { seconds: number; label: string; paused?: boolean };
+type Props = { seconds: number; label: string; paused?: boolean; onComplete?: () => void };
 
-export function CountdownTimer({ seconds, label, paused = false }: Props) {
+export function CountdownTimer({ seconds, label, paused = false, onComplete }: Props) {
   const [remaining, setRemaining] = useState(seconds);
   const [running, setRunning] = useState(true);
   const deadline = useRef<number | null>(null);
+  const completed = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     setRemaining(seconds);
     setRunning(true);
+    completed.current = false;
   }, [seconds, label]);
 
   useEffect(() => {
@@ -23,7 +30,13 @@ export function CountdownTimer({ seconds, label, paused = false }: Props) {
       if (deadline.current === null) return;
       const next = Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000));
       setRemaining(next);
-      if (next === 0) setRunning(false);
+      if (next === 0) {
+        setRunning(false);
+        if (!completed.current) {
+          completed.current = true;
+          onCompleteRef.current?.();
+        }
+      }
     };
     const timer = window.setInterval(tick, 250);
     document.addEventListener("visibilitychange", tick);
@@ -44,6 +57,7 @@ export function CountdownTimer({ seconds, label, paused = false }: Props) {
           {running ? <Pause size={15} /> : <Play size={15} />} {running ? "Pause" : "Start"}
         </button>
         <button onClick={() => {
+          completed.current = false;
           setRunning(true);
           setRemaining(seconds);
           deadline.current = Date.now() + seconds * 1000;

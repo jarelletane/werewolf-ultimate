@@ -38,6 +38,7 @@ import {
   Action,
 } from "./engine/game";
 import { NarrationClip, playNarrationClips, stopNarration, unlockNarrationAudio } from "./audio/narration";
+import { audioUrl } from "./audio/urls";
 import { AccessibleModal } from "./components/AccessibleModal";
 import { CountdownTimer } from "./components/CountdownTimer";
 import { AmbienceControl } from "./components/AmbienceControl";
@@ -1118,6 +1119,11 @@ export default function App() {
                       seconds={g.phase === "day" ? g.settings.discussion : g.settings.vote}
                       label={`${g.phase} countdown`}
                       paused={gamePaused || (g.phase === "day" && !roleRevealReady)}
+                      onComplete={g.phase === "day" ? () => {
+                        const horn = new Audio(audioUrl("/audio/day-timer-horn.mp3"));
+                        horn.volume = 1;
+                        void horn.play().catch(() => undefined);
+                      } : undefined}
                     />
                   )}
                 </>
