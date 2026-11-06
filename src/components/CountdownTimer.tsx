@@ -48,7 +48,7 @@ export function CountdownTimer({ seconds, label, paused = false, onComplete }: P
 
   const formatted = `${String(Math.floor(remaining / 60)).padStart(2, "0")}:${String(remaining % 60).padStart(2, "0")}`;
   return (
-    <div className="timer">
+    <div className={`timer${remaining <= 10 ? " urgent" : ""}`}>
       <div className="eyebrow">{label}</div>
       <div className="time">{formatted}</div>
       <div className="progress"><div style={{ width: `${(remaining / Math.max(1, seconds)) * 100}%` }} /></div>

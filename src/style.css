@@ -597,6 +597,19 @@ select:focus {
   background: #b8a0e5;
   transition: width 0.2s;
 }
+.timer.urgent {
+  border-color: #a92b37;
+}
+.timer.urgent .time {
+  color: #ef4d5e;
+}
+.timer.urgent .progress > div,
+.day-theme .timer.urgent .progress > div {
+  background: #c42e3d;
+}
+.day-theme .timer.urgent .time {
+  color: #a71929;
+}
 .timerbuttons {
   display: flex;
   justify-content: center;
