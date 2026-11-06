@@ -536,7 +536,6 @@ export default function App() {
       actor: actor.id,
       type,
       target: selection,
-      secondary: type === "link" ? secondary : undefined,
     };
     const actions = g.actions.filter(
       (a) => !(a.actor === actor.id && a.type === type),
@@ -546,13 +545,12 @@ export default function App() {
     setSecondary("");
   }
   function gameWithSelectedNightAction() {
-    if (!current || current.key !== "wolves" || !actor || !selection) return g;
+    if (!current || current.key !== "wolves" || current.ability !== "kill" || !actor || !selection) return g;
     const type = current.ability;
     const action: Action = {
       actor: actor.id,
       type,
       target: selection,
-      secondary: type === "link" ? secondary : undefined,
     };
     return {
       ...g,
@@ -1293,7 +1291,7 @@ export default function App() {
                           disabled={
                             !nightNarrationReady ||
                             (current.key === "witch" && !witchInstructionReady) ||
-                            (current.key === "wolves" && !selection)
+                            (current.key === "wolves" && current.ability === "kill" && !selection)
                           }
                         >
                           {g.step === steps.length - 1
@@ -1305,12 +1303,12 @@ export default function App() {
                       <small className="muted">
                         {!nightNarrationReady
                           ? "Listen to the required narration before continuing. If it was stopped, use Replay narration above."
+                          : current.ability === "none"
+                          ? "Night One is recognition only. No wolf target is selected."
                           : current.key === "wolves"
                           ? selection
                             ? "Target selected. You can change it until you continue."
                             : "Select one target to continue."
-                          : current.ability === "none"
-                          ? "Night One is recognition only. No wolf target is selected."
                           : hasAction
                           ? "✓ Action recorded. You can change it before advancing."
                           : "Skipping a role records no action."}
