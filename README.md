@@ -41,7 +41,12 @@ On iOS Safari, audio still requires an initial user gesture and the operating sy
 ## Structure
 
 - `src/engine/game.ts`: role catalog, night sequence, action resolution, voting, and tie-revote logic
-- `src/main.tsx`: React moderator dashboard, setup, timers, voting, narration
+- `src/main.tsx`: minimal React entry point
+- `src/App.tsx`: moderator game-flow orchestration
+- `src/store/`: saved-game state and persistence migration
+- `src/audio/`: narration playback, role-objective playlists, and asset URLs
+- `src/components/`: reusable timer, ambience, modal, and update controls
+- `src/screens/`: self-contained home and pre-game guide screens
 - `src/style.css`: responsive visual design
 
 ## Next iterations
