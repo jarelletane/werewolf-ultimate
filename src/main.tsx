@@ -42,6 +42,8 @@ import {
   Action,
   restoreGame,
 } from "./engine/game";
+import { audioUrl } from "./audio/urls";
+import { AccessibleModal } from "./components/AccessibleModal";
 import "./style.css";
 type SavedGame = { id: string; name: string; updatedAt: number; game: Game };
 type Store = {
@@ -255,7 +257,7 @@ const playNarrationClips = (
       onComplete?.();
       return;
     }
-    const recording = new Audio(clips[index].src);
+    const recording = new Audio(audioUrl(clips[index].src));
     let playbackFailed = false;
     const handlePlaybackFailure = () => {
       if (playbackFailed || run !== narrationRun) return;
@@ -352,10 +354,10 @@ function AmbienceControl({ phase, paused = false }: { phase: Game["phase"]; paus
   const [playing, setPlaying] = useState(false);
   const source =
     phase === "night"
-      ? "/audio/night-ambience.mp3"
+      ? audioUrl("/audio/night-ambience.mp3")
       : phase === "day" || phase === "vote"
-        ? "/audio/day-ambience.mp3?v=forest-30746"
-        : "/audio/horror-ambience.mp3";
+        ? audioUrl("/audio/day-ambience.mp3?v=forest-30746")
+        : audioUrl("/audio/horror-ambience.mp3");
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -432,7 +434,7 @@ function AmbienceControl({ phase, paused = false }: { phase: Game["phase"]; paus
         onPause={() => setPlaying(false)}
         onPlay={() => setPlaying(true)}
       />
-      <audio id="morning-rooster" src="/audio/rooster.mp3" preload="auto" />
+      <audio id="morning-rooster" src={audioUrl("/audio/rooster.mp3")} preload="auto" />
       <button
         className={enabled ? "ambience-button active" : "ambience-button"}
         onClick={toggle}
@@ -1964,7 +1966,7 @@ function App() {
         )}
       </main>
       {awaitingReveal && (g.phase !== "day" || roleRevealReady) && (
-        <div className="modalback required-role-reveal" role="dialog" aria-modal="true" aria-labelledby="role-reveal-title">
+        <AccessibleModal className="required-role-reveal" labelledBy="role-reveal-title">
           <div className="modal">
             <Skull size={30} />
             <div className="eyebrow">Required before continuing</div>
@@ -1999,10 +2001,10 @@ function App() {
               <Check size={17} /> Record role and continue
             </button>
           </div>
-        </div>
+        </AccessibleModal>
       )}
       {dawnTransition && (
-        <div className="modalback dawn-transition" role="dialog" aria-modal="true" aria-labelledby="dawn-title">
+        <AccessibleModal className="dawn-transition" labelledBy="dawn-title">
           <div className="modal">
             <Eye size={30} />
             <div className="script-label">
@@ -2024,10 +2026,10 @@ function App() {
               Narration not playing? Continue to dawn
             </button>
           </div>
-        </div>
+        </AccessibleModal>
       )}
       {suggestedWinner && (
-        <div className="modalback" role="dialog" aria-modal="true" aria-labelledby="winner-check-title">
+        <AccessibleModal labelledBy="winner-check-title" onDismiss={() => setSuggestedWinner(null)}>
           <div className="modal inferred-winner">
             <Trophy size={30} />
             <div className="eyebrow">Victory condition reached</div>
@@ -2057,10 +2059,10 @@ function App() {
               </button>
             </div>
           </div>
-        </div>
+        </AccessibleModal>
       )}
       {pendingCriticalNight && (
-        <div className="modalback" role="dialog" aria-modal="true" aria-labelledby="critical-night-title">
+        <AccessibleModal labelledBy="critical-night-title">
           <div className="modal inferred-winner">
             <Moon size={30} />
             <div className="eyebrow">Final chance warning</div>
@@ -2098,13 +2100,13 @@ function App() {
             </div>
             <small>The warning narration plays automatically.</small>
           </div>
-        </div>
+        </AccessibleModal>
       )}
       {showEndGame && (
-        <div className="modalback">
+        <AccessibleModal labelledBy="end-game-title" onDismiss={() => setShowEndGame(false)}>
           <div className="modal">
             <Trophy size={28} />
-            <h2>End the current game</h2>
+            <h2 id="end-game-title">End the current game</h2>
             <p>Choose a winner to play the final announcement, or end the session without declaring one.</p>
             <div className="end-game-options">
               <button onClick={() => declareWinner("Village")}>Village wins</button>
@@ -2113,13 +2115,13 @@ function App() {
               <button className="ghost" onClick={() => setShowEndGame(false)}>Cancel</button>
             </div>
           </div>
-        </div>
+        </AccessibleModal>
       )}
       {confirmReset && (
-        <div className="modalback">
+        <AccessibleModal labelledBy="reset-title" onDismiss={() => setConfirmReset(false)}>
           <div className="modal">
             <Skull size={28} />
-            <h2>Begin a new story?</h2>
+            <h2 id="reset-title">Begin a new story?</h2>
             <p>
               This will erase the current game. Your current progress is saved
               only in this browser.
@@ -2148,10 +2150,10 @@ function App() {
               </button>
             </div>
           </div>
-        </div>
+        </AccessibleModal>
       )}
       {gamePaused && (
-        <div className="modalback pause-overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+        <AccessibleModal className="pause-overlay" labelledBy="pause-title" onDismiss={() => setGamePaused(false)}>
           <div className="modal pause-modal">
             <Pause size={32} />
             <div className="eyebrow">Progress autosaved</div>
@@ -2162,7 +2164,7 @@ function App() {
             </button>
             <small>If narration was interrupted, use Replay narration after resuming.</small>
           </div>
-        </div>
+        </AccessibleModal>
       )}
     </div>
   );
