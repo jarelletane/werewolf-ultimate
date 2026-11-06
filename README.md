@@ -30,7 +30,7 @@ Open the Vite URL printed in your terminal. For a production build run `npm run 
 
 This is a **playable MVP with an original, simplified Ultimate-style ruleset**, not an official licensed implementation of any published Ultimate Werewolf edition. Role descriptions in the setup UI define this app's house rules. Alpha Wolf is a standard pack wolf; Priest is a regular villager; Apprentice Seer inherits investigations after Seer's death. The Witch can manually choose a healing target (no automatic revelation of the wolf target), with one use per potion. The first-night Cupid can link two lovers. A Hunter elimination pauses the game for a retaliation choice. Silencer is wolf-aligned but cannot vote in the wolf kill action unless another pack wolf is present. Serial Killer prevents standard faction victory while alive. Neutral role victory conditions are simplified.
 
-This version is single-device and moderator-only. There is no networked role distribution, player voting, or authentication. Recorded narration falls back to the browser's SpeechSynthesis voices when a clip cannot play, so voice availability varies by browser. Timers do not auto-advance actions. Saved games and progress are stored in localStorage and validated when restored.
+This version is single-device and moderator-only. There is no networked role distribution, player voting, or authentication. Gameplay uses recorded narration and keeps the script visible if a clip cannot play; browser speech is used only when the moderator explicitly selects a role-objective “Listen” control. Timers do not auto-advance actions. Saved games and progress are stored in localStorage and validated when restored.
 
 ## Install and offline use
 
