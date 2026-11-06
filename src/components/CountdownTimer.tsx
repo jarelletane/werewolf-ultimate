@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
 
-type Props = { seconds: number; label: string; paused?: boolean; onComplete?: () => void };
+type Props = { seconds: number; label: string; paused?: boolean; onComplete?: () => void; onReset?: () => void };
 
-export function CountdownTimer({ seconds, label, paused = false, onComplete }: Props) {
+export function CountdownTimer({ seconds, label, paused = false, onComplete, onReset }: Props) {
   const [remaining, setRemaining] = useState(seconds);
   const [running, setRunning] = useState(true);
   const deadline = useRef<number | null>(null);
@@ -58,6 +58,7 @@ export function CountdownTimer({ seconds, label, paused = false, onComplete }: P
         </button>
         <button onClick={() => {
           completed.current = false;
+          onReset?.();
           setRunning(true);
           setRemaining(seconds);
           deadline.current = Date.now() + seconds * 1000;

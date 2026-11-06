@@ -93,12 +93,19 @@ export default function App() {
   const [manualTarget, setManualTarget] = useState("");
   const [eliminatedRole, setEliminatedRole] = useState<RoleId | "">("");
   const [voteTarget, setVoteTarget] = useState("");
+  const [dayTimerComplete, setDayTimerComplete] = useState(false);
+  const [timerInputs, setTimerInputs] = useState(() => ({
+    discussion: String(g.settings.discussion),
+    vote: String(g.settings.vote),
+  }));
   const [dawnTransition, setDawnTransition] = useState(false);
   const [roleRevealReady, setRoleRevealReady] = useState(true);
   const [nightNarrationReady, setNightNarrationReady] = useState(true);
   const [pendingCriticalNight, setPendingCriticalNight] = useState<Game | null>(null);
   const previousPhase = useRef(g.phase);
   const skipNextAutomaticNarration = useRef(false);
+  const hornSource = useRef<MediaElementAudioSourceNode | null>(null);
+  const hornGain = useRef<GainNode | null>(null);
   const players = alive(g),
     steps = nightSteps(g),
     current = steps[g.step],
@@ -325,6 +332,12 @@ export default function App() {
                               }
                 : null;
   useEffect(() => {
+    setTimerInputs({
+      discussion: String(g.settings.discussion),
+      vote: String(g.settings.vote),
+    });
+  }, [g.settings.discussion, g.settings.vote]);
+  useEffect(() => {
     if (gamePaused || suggestedWinner) return;
     if (awaitingReveal && g.phase !== "day") return;
     const prior = previousPhase.current;
@@ -386,6 +399,13 @@ export default function App() {
   function playDayHorn() {
     const horn = document.querySelector<HTMLAudioElement>("#day-timer-horn")
       ?? new Audio(audioUrl("/audio/day-timer-horn.mp3"));
+    const context = unlockNarrationAudio();
+    if (context && !hornSource.current) {
+      hornSource.current = context.createMediaElementSource(horn);
+      hornGain.current = context.createGain();
+      hornGain.current.gain.value = 1.5;
+      hornSource.current.connect(hornGain.current).connect(context.destination);
+    }
     horn.currentTime = 0;
     horn.volume = 1;
     void horn.play().catch(() => undefined);
@@ -610,6 +630,7 @@ export default function App() {
   }
   function finishDawnTransition(game = g) {
     setRoleRevealReady(false);
+    setDayTimerComplete(false);
     set(resolveNight(game));
     setDawnTransition(false);
     setSelection("");
@@ -1012,15 +1033,21 @@ export default function App() {
                       <input
                         type="number"
                         min="10"
-                        value={g.settings[key]}
-                        onChange={(e) =>
+                        value={timerInputs[key]}
+                        onChange={(event) => setTimerInputs((current) => ({
+                          ...current,
+                          [key]: event.target.value,
+                        }))}
+                        onBlur={() => {
+                          const duration = Math.max(10, Number(timerInputs[key]) || 10);
+                          setTimerInputs((current) => ({ ...current, [key]: String(duration) }));
                           update({
                             settings: {
                               ...g.settings,
-                              [key]: Math.max(10, Number(e.target.value) || 10),
+                              [key]: duration,
                             },
-                          })
-                        }
+                          });
+                        }}
                       />
                       <span>sec</span>
                     </div>
@@ -1135,7 +1162,11 @@ export default function App() {
                       seconds={g.phase === "day" ? g.settings.discussion : g.settings.vote}
                       label={`${g.phase} countdown`}
                       paused={gamePaused || (g.phase === "day" && !roleRevealReady)}
-                      onComplete={g.phase === "day" ? playDayHorn : undefined}
+                      onComplete={g.phase === "day" ? () => {
+                        setDayTimerComplete(true);
+                        playDayHorn();
+                      } : undefined}
+                      onReset={g.phase === "day" ? () => setDayTimerComplete(false) : undefined}
                     />
                   )}
                 </>
@@ -1374,7 +1405,7 @@ export default function App() {
                   <button
                     className="primary big"
                     onClick={() => {
-                      playDayHorn();
+                      if (!dayTimerComplete) playDayHorn();
                       update({ phase: "vote", votes: {} });
                     }}
                   >
