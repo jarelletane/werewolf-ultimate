@@ -13,6 +13,9 @@ Record each item as a separate MP3 file. Where a **MODERATOR PAUSE** is shown, t
 - [ ] `03-game-begins.mp3`
   - “The village is seated. The cards have been dealt. Your role must remain secret. The game now begins.”
 
+- [x] `04-new-player-strategy.mp3`
+  - Optional strategy introduction for first-time players, available from the How to Play guide.
+
 ## Beginning each night
 
 - [ ] `10-night-one-begins.mp3`

@@ -469,6 +469,8 @@ function WelcomeScreen({
     "Welcome to the village. By day, the village debates and votes. By night, hidden roles wake and act. Keep your card secret, listen carefully, and decide whom to trust before the wolves take control.";
   const gameExplanation =
     "First, deal the physical role cards. Each player secretly checks their card. When night falls, everyone closes their eyes and the moderator follows the prompts while active roles silently choose their targets. At dawn, reveal the victims and discuss what happened. Every surviving player may make their case before the village votes to eliminate one suspect. Continue through night and day until a faction or special role completes its objective.";
+  const newPlayerStrategy =
+    "If this is your first game, remember that Werewolf is a game of observation, persuasion, and deception. Villagers should listen for contradictions, compare how people vote, and share suspicions without revealing too much too early. Special village roles should use their information carefully, because revealing yourself may make you a target. Werewolves should appear helpful, redirect suspicion, and support one another without making their alliance obvious. Neutral roles have their own objectives, so their behaviour may not benefit either side. You do not need to be certain before speaking. Ask questions, explain your reasoning, and pay attention to how others react. Being eliminated is part of the game, so keep your role secret and enjoy the story as it unfolds.";
   return (
     <div className="welcome-screen">
       <section className="panel welcome-hero">
@@ -513,6 +515,21 @@ function WelcomeScreen({
               <div><span>2</span><strong>Play the night</strong><p>Everyone closes their eyes. The moderator follows the app’s prompts while active roles silently choose targets.</p></div>
               <div><span>3</span><strong>Debate by day</strong><p>Reveal the night’s victims, discuss suspicions, and let every surviving player make their case.</p></div>
               <div><span>4</span><strong>Vote and survive</strong><p>The village votes to eliminate one suspect. Continue until a faction or special role reaches its objective.</p></div>
+            </div>
+            <div className="role-instruction">
+              <div className="script-label"><BookOpen size={14} /> Optional guide for first-time players</div>
+              <p>Learn the basic strategy for Villagers, special roles, Werewolves, and neutral players without revealing advanced tactics.</p>
+              <button
+                className="secondary"
+                onClick={() =>
+                  playNarrationClips(
+                    [{ src: "/audio/narration/04-new-player-strategy.mp3", text: newPlayerStrategy }],
+                    newPlayerStrategy,
+                  )
+                }
+              >
+                <Volume2 size={16} /> Play new-player strategy
+              </button>
             </div>
           </section>
           <section className="panel">
