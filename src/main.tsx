@@ -115,7 +115,8 @@ const useGame = create<Store>()(
 );
 
 const AMBIENCE_VOLUME = 0.18;
-const DUCKED_VOLUME = AMBIENCE_VOLUME * 0.3;
+// Audio amplitude is logarithmic; 10% amplitude sounds closer to 30% perceived loudness.
+const DUCKED_VOLUME = AMBIENCE_VOLUME * 0.1;
 const CRITICAL_NIGHT_NARRATION =
   "Three souls remain, and a Werewolf still walks among you. If the village enters the night and the hunt succeeds, the Werewolf may seize control. This may be your final chance.";
 const ROLE_MINIMUM_PLAYERS: Partial<Record<RoleId, number>> = {
